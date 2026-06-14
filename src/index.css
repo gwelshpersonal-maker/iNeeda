@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 15px rgba(249, 115, 22, 0.3);
+
+  --color-gold-50: #fffdf0;
+  --color-gold-100: #fffadb;
+  --color-gold-200: #fff4ba;
+  --color-gold-300: #ffe985;
+  --color-gold-400: #ffdd4a;
+  --color-gold-500: #ffd01f;
+  --color-gold-600: #e5ad08;
+  --color-gold-700: #b87f05;
+  --color-gold-800: #96610b;
+  --color-gold-900: #7e4f0f;
+  --color-gold-950: #482a03;
+
+  --color-navy-50: #eff6ff;
+  --color-navy-100: #dbeafe;
+  --color-navy-200: #bfdbfe;
+  --color-navy-300: #93c5fd;
+  --color-navy-400: #60a5fa;
+  --color-navy-500: #3b82f6;
+  --color-navy-600: #2563eb;
+  --color-navy-700: #1d4ed8;
+  --color-navy-800: #1e40af;
+  --color-navy-900: #1e3a8a;
+  --color-navy-950: #0f2252;
+
+  --color-brandRed-500: #ef4444;
+  --color-brandRed-600: #dc2626;
+  --color-brandRed-700: #b91c1c;
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; 
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; 
+}
+body {
+  background-color: #f8fafc; /* Slate-50 equivalent */
+}
+
+@keyframes scroll-fast {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+.animate-scroll-fast {
+  animation: scroll-fast 30s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-scroll-fast {
+    animation: none;
+  }
+}
+

@@ -1,0 +1,202 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the platform (Client or Provider).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the user." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "name": { "type": "string", "description": "The user's full name." },
+        "role": { "type": "string", "enum": ["CLIENT", "PROVIDER", "ADMIN"], "description": "The user's role." },
+        "phone": { "type": "string", "description": "The user's phone number." },
+        "address": { "type": "string", "description": "The user's physical address." },
+        "companyName": { "type": "string", "description": "Business name for providers." },
+        "profileImage": { "type": "string", "description": "URL or Base64 of profile image/logo." },
+        "portfolioImages": { "type": "array", "items": { "type": "string" }, "description": "List of portfolio image URLs/Base64." },
+        "bio": { "type": "string", "description": "The user's biography." },
+        "location": { "type": "string", "description": "The user's general location." },
+        "longitude": { "type": "number" },
+        "latitude": { "type": "number" },
+        "rating": { "type": "number", "description": "The user's average rating." },
+        "jobsCompleted": { "type": "integer", "description": "Number of jobs completed." },
+        "verified": { "type": "boolean", "description": "Whether the user is verified." },
+        "verificationStatus": { "type": "string", "enum": ["PENDING", "VERIFIED", "REJECTED"] },
+        "insuranceType": { "type": "string", "enum": ["OWN_COI", "DAILY_SHIELD"] },
+        "isCoiVerified": { "type": "boolean" },
+        "coiUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the account was created." },
+        "badges": { "type": "array", "items": { "type": "string" }, "description": "List of badges earned." },
+        "skills": { "type": "array", "items": { "type": "string" }, "description": "List of approved skills." },
+        "pendingSkills": { "type": "array", "items": { "type": "string" }, "description": "Skills awaiting approval." },
+        "isOnline": { "type": "boolean", "description": "Whether the user is currently online." },
+        "urgentAlertsEnabled": { "type": "boolean" },
+        "stripeAccountId": { "type": "string" },
+        "hasPaymentMethod": { "type": "boolean" }
+      },
+      "required": ["id", "email", "name", "role", "createdAt"]
+    },
+    "Shift": {
+      "title": "Shift",
+      "description": "A job posting or shift available for providers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the shift." },
+        "clientId": { "type": "string", "description": "The ID of the client who posted the shift." },
+        "providerId": { "type": "string", "description": "The ID of the provider assigned to the shift." },
+        "title": { "type": "string", "description": "The title of the job." },
+        "description": { "type": "string", "description": "Detailed description of the job." },
+        "photos": { "type": "array", "items": { "type": "string" }, "description": "Base64 encoded photos attached to the request." },
+        "category": { "type": "string", "description": "The service category (e.g., PLUMBING)." },
+        "status": { "type": "string", "enum": ["OPEN", "CLAIMED", "IN_PROGRESS", "COMPLETED", "CANCELLED"], "description": "Current status of the shift." },
+        "startTime": { "type": "string", "format": "date-time", "description": "When the shift starts." },
+        "endTime": { "type": "string", "format": "date-time", "description": "When the shift ends." },
+        "location": { "type": "string", "description": "Where the job takes place." },
+        "hourlyRate": { "type": "number", "description": "The hourly rate offered." },
+        "totalPay": { "type": "number", "description": "The total pay for the job." },
+        "selectionMethod": { "type": "string", "enum": ["QUICK_BID", "BIDDING"], "description": "How the provider is selected." },
+        "counterOffers": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "providerId": { "type": "string" },
+              "amount": { "type": "number" },
+              "message": { "type": "string" },
+              "status": { "type": "string", "enum": ["PENDING", "ACCEPTED", "DECLINED"] },
+              "createdAt": { "type": "string", "format": "date-time" },
+              "suggestedStart": { "type": "string", "format": "date-time" },
+              "suggestedEnd": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "clientId", "title", "category", "status", "startTime", "endTime", "location", "createdAt"]
+    },
+    "Quote": {
+      "title": "Quote",
+      "description": "A bid submitted by a provider for a job.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "jobId": { "type": "string" },
+        "providerId": { "type": "string" },
+        "amount": { "type": "number" },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "ACCEPTED", "DECLINED", "EXPIRED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "suggestedStart": { "type": "string", "format": "date-time" },
+        "suggestedEnd": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "jobId", "providerId", "amount", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "targetUserId": { "type": "string" },
+        "type": { "type": "string", "enum": ["INFO", "SUCCESS", "WARNING", "ERROR"] },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" },
+        "link": { "type": "string" }
+      },
+      "required": ["id", "targetUserId", "type", "message", "timestamp", "read"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A chat message between users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" },
+        "jobId": { "type": "string" }
+      },
+      "required": ["id", "senderId", "receiverId", "content", "timestamp", "read"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "System administrative records.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "level": { "type": "string", "enum": ["SUPER_ADMIN", "SUPPORT"] },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "level", "addedAt"]
+    },
+    "CategoryRequest": {
+      "title": "CategoryRequest",
+      "description": "A request for a new job category or skill.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string", "description": "The ID of the user (client or pro) making the request.", "nullable": true },
+        "email": { "type": "string", "description": "Email for contact.", "nullable": true },
+        "phoneNumber": { "type": "string", "description": "Phone number for contact.", "nullable": true },
+        "categoryName": { "type": "string", "description": "The name of the requested category." },
+        "description": { "type": "string", "description": "Why they want this category." },
+        "userRole": { "type": "string", "enum": ["CLIENT", "PROVIDER"], "description": "Role of the requester." },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"], "description": "Status of the request." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "categoryName", "userRole", "status", "createdAt"]
+    },
+    "SupportMessage": {
+      "title": "SupportMessage",
+      "description": "A contact/support message submitted from the public site.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "subject": { "type": "string" },
+        "body": { "type": "string" },
+        "status": { "type": "string", "enum": ["NEW", "READ", "RESOLVED"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email", "subject", "body", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "/admins/{userId}": {
+      "schema": "Admin",
+      "description": "System administrators."
+    },
+    "/shifts/{shiftId}": {
+      "schema": "Shift",
+      "description": "Job postings and shifts."
+    },
+    "/quotes/{quoteId}": {
+      "schema": "Quote",
+      "description": "Bids and quotes for jobs."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications."
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat messages between users."
+    },
+    "/categoryRequests/{requestId}": {
+      "schema": "CategoryRequest",
+      "description": "Requests for new job categories."
+    },
+    "/supportMessages/{messageId}": {
+      "schema": "SupportMessage",
+      "description": "Messages from the contact page."
+    }
+  }
+}

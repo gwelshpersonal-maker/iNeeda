@@ -1,0 +1,5 @@
+{
+  "name": "iNeeda",
+  "description": "An elite workforce management platform connecting clients with specialized service professionals, featuring secure escrow payments, AI-assisted job scoping, and verified GPS time-tracking.",
+  "requestFramePermissions": ["camera", "geolocation"]
+}

@@ -1,0 +1,305 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: id, email, name, role, phone, address, latitude, longitude, createdAt, etc.
+    //
+    // Collection: shifts
+    // Fields: id, userId, clientId, siteId, start, end, description, category, status, price, createdAt, etc.
+    //
+    // Collection: quotes
+    // Fields: id, jobId, providerId, amount, message, status, createdAt, suggestedStart, suggestedEnd
+    //
+    // Collection: notifications
+    // Fields: id, targetUserId, type, message, timestamp, read
+    //
+    // Collection: messages
+    // Fields: id, shiftId, senderId, content, timestamp, read
+    //
+    // Collection: job_postings
+    // Fields: id, orgId, title, description, payRange, isPublic, status, createdAt
+    //
+    // Collection: job_applications
+    // Fields: id, jobId, candidateName, candidateEmail, candidatePhone, experience, status, appliedAt
+    //
+    // Collection: referrals
+    // Fields: id, referrerUserId, referredUserId, codeUsed, status, createdAt, payoutAmount, programType
+    //
+    // Collection: legal_documents
+    // Fields: id, title, content, lastUpdated, category
+    //
+    // Collection: faqs
+    // Fields: id, question, answer, order
+    //
+    // Collection: categoryRequests
+    // Fields: id, userId, categoryName, description, userRole, status, createdAt
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isAdminOrManager() {
+      return isAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'MANAGER']);
+    }
+
+    function isVerificationVerified() {
+      return isAuthenticated() && request.auth.token.email_verified == true;
+    }
+
+    function isSubscribedPro() {
+      let user = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return user.role == 'PROVIDER' && (user.subscriptionStatus == 'active' || user.isFoundersClub == true);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function getRiskLevel(category) {
+      let riskMap = {
+        'MOVING': 'HIGH', 'PLUMBING': 'HIGH', 'AUTO': 'HIGH', 'CONSTRUCTION': 'HIGH', 'JOBSITE_LABOR': 'HIGH', 
+        'POWER_WASHING': 'HIGH', 'PEST_CONTROL': 'HIGH', 'GUTTER_CLEANING': 'HIGH',
+        'HANDYMAN': 'MEDIUM', 'GENERAL_LABOR': 'MEDIUM', 'LANDSCAPING': 'MEDIUM', 'SMART_HOME_INSTALL': 'MEDIUM', 'FURNITURE_ASSEMBLY': 'MEDIUM',
+        'CLEANING': 'LOW', 'COMPUTER': 'LOW', 'WEB_APP_DEV': 'LOW'
+      };
+      return riskMap.get(category, 'LOW');
+    }
+
+    function getInsuranceFee(riskLevel) {
+      let feeMap = {'LOW': 3.0, 'MEDIUM': 5.0, 'HIGH': 12.0};
+      return feeMap.get(riskLevel, 3.0);
+    }
+
+    function isValidUser(data) {
+      return hasRequiredFields(['id', 'email', 'name', 'role']) &&
+             data.id is string &&
+             isValidEmail(data.email) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.role in ['CLIENT', 'PROVIDER', 'ADMIN', 'MANAGER', 'EMPLOYEE', 'VENDOR'];
+    }
+
+    function isValidShift(data) {
+      return hasRequiredFields(['id', 'siteId', 'description', 'category', 'status']) &&
+             data.id is string &&
+             data.siteId is string &&
+             data.description is string &&
+             data.category is string &&
+             (!('photos' in data) || data.photos is list) &&
+             data.status in ['PENDING', 'ACCEPTED', 'EN_ROUTE', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED', 'OPEN_REQUEST', 'SUSPENDED', 'CANCELLED'] &&
+             (!('price' in data) || (data.price is number && data.price >= 0)) &&
+             (!('platformFee' in data) || (data.platformFee is number)) &&
+             (!('insuranceFee' in data) || (data.insuranceFee is number));
+    }
+
+    function isValidQuote(data) {
+      // Basic platform fee check (15%)
+      // Using 14% as a safety floor to allow for rounding differences while preventing 0/malicious values
+      let minPlatformFee = (data.amount * 14) / 100;
+      
+      return hasRequiredFields(['id', 'jobId', 'providerId', 'amount', 'platformFee', 'insuranceFee', 'status']) &&
+             data.id is string &&
+             data.jobId is string &&
+             data.providerId is string &&
+             data.amount is number && data.amount > 0 &&
+             data.platformFee is number && data.platformFee >= minPlatformFee &&
+             data.insuranceFee is number &&
+             data.status in ['PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED'];
+    }
+
+    function isValidNotification(data) {
+      return hasRequiredFields(['id', 'targetUserId', 'type', 'message', 'read']) &&
+             data.id is string &&
+             data.targetUserId is string &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 2000 &&
+             data.read is bool;
+    }
+
+    function isValidMessage(data) {
+      return hasRequiredFields(['id', 'shiftId', 'senderId', 'content', 'read']) &&
+             data.id is string &&
+             data.shiftId is string &&
+             data.senderId is string &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 5000 &&
+             data.read is bool;
+    }
+
+    function isValidCategoryRequest(data) {
+      return hasRequiredFields(['id', 'categoryName', 'userRole', 'status']) &&
+             data.id is string &&
+             (data.userId is string || data.email is string) &&
+             data.categoryName is string && data.categoryName.size() > 0 && data.categoryName.size() < 200 &&
+             data.userRole in ['CLIENT', 'PROVIDER'] &&
+             data.status in ['PENDING', 'APPROVED', 'REJECTED'];
+    }
+
+    function isValidSupportMessage(data) {
+      return hasRequiredFields(['id', 'email', 'subject', 'body', 'status']) &&
+             data.id is string &&
+             isValidEmail(data.email) &&
+             data.subject is string && data.subject.size() > 0 && data.subject.size() < 200 &&
+             data.body is string && data.body.size() > 0 && data.body.size() < 5000 &&
+             data.status in ['NEW', 'READ', 'RESOLVED'];
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /public_profiles/{profileId} {
+      allow read: if true;
+      allow write: if isOwner(profileId) || isAdminOrManager();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                    request.resource.data.role != 'ADMIN' && 
+                    !('subscriptionStatus' in request.resource.data) &&
+                    !('isFoundersClub' in request.resource.data);
+      allow update: if (isAdminOrManager() || (
+                      isOwner(userId) && 
+                      request.resource.data.role == resource.data.role && 
+                      !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscriptionStatus', 'subscriptionId', 'subscriptionPeriodEnd', 'stripeCustomerId', 'isFoundersClub'])
+                    )) && isValidUser(request.resource.data);
+      allow delete: if isAdminOrManager();
+    }
+
+    match /subscription_payments/{paymentId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdminOrManager());
+      allow write: if false; // Only written by the server via Admin SDK
+    }
+
+    match /admins/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow write: if false; // Only manageable via Admin SDK/Console
+    }
+
+    match /sites/{siteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /shifts/{shiftId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidShift(request.resource.data);
+      allow update: if isAuthenticated() && 
+                    (resource.data.clientId == request.auth.uid || isSubscribedPro() || isAdmin()) && 
+                    isValidShift(request.resource.data);
+      allow delete: if isAdmin() || (resource.data.clientId == request.auth.uid && (resource.data.status == 'PENDING' || resource.data.status == 'OPEN_REQUEST' || resource.data.status == 'SUSPENDED'));
+    }
+
+    match /quotes/{quoteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isSubscribedPro() && isValidQuote(request.resource.data);
+      allow update: if isAuthenticated() && 
+                    (resource.data.providerId == request.auth.uid || isSubscribedPro() || isAdmin()) && 
+                    isValidQuote(request.resource.data);
+      allow delete: if isAdmin() || resource.data.providerId == request.auth.uid;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.targetUserId) || isAdmin();
+      allow create: if isAuthenticated() && isValidNotification(request.resource.data);
+      allow update, delete: if isOwner(resource.data.targetUserId) || isAdmin();
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.senderId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /job_postings/{jobId} {
+      allow read: if true; // Public job board
+      allow write: if isAdminOrManager();
+    }
+
+    match /job_applications/{appId} {
+      allow read: if isAuthenticated();
+      allow create: if true; // Anyone can apply
+      allow update: if isAdminOrManager();
+      allow delete: if isAdminOrManager();
+    }
+
+    match /referrals/{refId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /service_categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdminOrManager();
+    }
+
+    match /platform_settings/{configId} {
+      allow read: if true;
+      allow write: if isAdminOrManager();
+    }
+
+    match /legal_documents/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /faqs/{faqId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categoryRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if (isAuthenticated() && (request.resource.data.userId == request.auth.uid || request.resource.data.email == request.auth.token.email)) || 
+                      (!isAuthenticated() && request.resource.data.email is string); 
+      allow update, delete: if isAdmin();
+    }
+
+    match /supportMessages/{messageId} {
+      allow read: if isAdminOrManager();
+      allow create: if isValidSupportMessage(request.resource.data);
+      allow update, delete: if isAdminOrManager();
+    }
+
+    match /founders_club_applications/{appId} {
+      allow read: if isAdminOrManager();
+      allow create: if true;
+      allow update, delete: if isAdminOrManager();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
