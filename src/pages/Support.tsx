@@ -199,17 +199,8 @@ export const Support = () => {
                 <CareersSection />
             ) : (
                 <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
                 {/* Contact Info Cards */}
-                <div className="bg-white p-6 rounded-xl border border-gold-200 shadow-sm flex flex-col items-center text-center">
-                    <div className="p-3 bg-navy-50 text-navy-600 rounded-full mb-3">
-                        <Phone className="w-6 h-6" />
-                    </div>
-                    <h3 className="font-bold text-navy-900 mb-1">Call Us</h3>
-                    <p className="text-sm text-slate-600">Mon-Fri, 8am - 6pm</p>
-                    <a href="tel:555-123-4567" className="text-gold-600 font-bold mt-2 hover:underline">(555) 123-4567</a>
-                </div>
-
                 <div className="bg-white p-6 rounded-xl border border-gold-200 shadow-sm flex flex-col items-center text-center">
                     <div className="p-3 bg-navy-50 text-navy-600 rounded-full mb-3">
                         <Mail className="w-6 h-6" />
@@ -224,7 +215,7 @@ export const Support = () => {
                         <MapPin className="w-6 h-6" />
                     </div>
                     <h3 className="font-bold text-navy-900 mb-1">HQ</h3>
-                    <p className="text-sm text-slate-600">123 To Be Determined St.</p>
+                    <p className="text-sm text-slate-600">2 Brighton Ln</p>
                     <p className="text-sm text-slate-600">Camp Hill, PA 17011</p>
                 </div>
             </div>

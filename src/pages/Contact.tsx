@@ -183,17 +183,6 @@ export const Contact: React.FC = () => {
             <div className="space-y-6">
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-start group hover:border-gold-300 transition-colors">
                     <div className="p-4 bg-navy-50 text-navy-600 rounded-xl mr-4 group-hover:bg-gold-50 group-hover:text-gold-600 transition-colors">
-                        <Phone className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-navy-900 text-lg mb-1">Call Us</h3>
-                        <p className="text-sm text-slate-600 mb-2">Mon-Fri, 8am - 6pm EST</p>
-                        <a href="tel:555-123-4567" className="text-gold-600 font-bold hover:underline">(555) 123-4567</a>
-                    </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-start group hover:border-gold-300 transition-colors">
-                    <div className="p-4 bg-navy-50 text-navy-600 rounded-xl mr-4 group-hover:bg-gold-50 group-hover:text-gold-600 transition-colors">
                         <Mail className="w-6 h-6" />
                     </div>
                     <div>
@@ -210,7 +199,7 @@ export const Contact: React.FC = () => {
                     <div>
                         <h3 className="font-bold text-navy-900 text-lg mb-1">Headquarters</h3>
                         <p className="text-sm text-slate-600 leading-relaxed">
-                            123 To Be Determined St.<br/>
+                            2 Brighton Ln<br/>
                             Camp Hill, PA 17011
                         </p>
                     </div>

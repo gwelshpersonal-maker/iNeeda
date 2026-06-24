@@ -57,16 +57,7 @@ export const PublicSupport: React.FC = () => {
           ) : (
             <div className="space-y-12">
               {/* Contact Info Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-8 rounded-2xl border border-gold-200 shadow-sm flex flex-col items-center text-center hover:shadow-md transition-shadow">
-                    <div className="p-4 bg-navy-50 text-navy-600 rounded-full mb-4">
-                        <Phone className="w-8 h-8" />
-                    </div>
-                    <h3 className="font-bold text-navy-900 mb-2">Call Us</h3>
-                    <p className="text-sm text-slate-600">Mon-Fri, 8am - 6pm</p>
-                    <a href="tel:555-123-4567" className="text-gold-600 font-bold mt-3 hover:underline text-lg">(555) 123-4567</a>
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
                 <div className="bg-white p-8 rounded-2xl border border-gold-200 shadow-sm flex flex-col items-center text-center hover:shadow-md transition-shadow">
                     <div className="p-4 bg-navy-50 text-navy-600 rounded-full mb-4">
                         <Mail className="w-8 h-8" />
@@ -81,7 +72,7 @@ export const PublicSupport: React.FC = () => {
                         <MapPin className="w-8 h-8" />
                     </div>
                     <h3 className="font-bold text-navy-900 mb-2">HQ</h3>
-                    <p className="text-sm text-slate-600">123 To Be Determined St.</p>
+                    <p className="text-sm text-slate-600">2 Brighton Ln</p>
                     <p className="text-sm text-slate-600">Camp Hill, PA 17011</p>
                 </div>
               </div>
