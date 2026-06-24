@@ -73,14 +73,6 @@ export const ComingSoon: React.FC = () => {
               <span className="text-indigo-400">iN</span>eeda.Work
             </span>
           </div>
-          <div>
-            <Link 
-              to="/login" 
-              className="text-xs font-bold text-slate-400 hover:text-white bg-slate-900/60 hover:bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl transition-all"
-            >
-              Pro Sign In
-            </Link>
-          </div>
         </div>
 
         {/* Hero Copy */}
