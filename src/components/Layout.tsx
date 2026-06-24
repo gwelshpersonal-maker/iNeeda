@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { Role } from '../types';
 import { APP_LOGO_URL } from '../constants';
+import { AIChatWidget } from './AIChatWidget';
 
 const NAV_ITEMS = [
   // Client Items
@@ -25,7 +26,7 @@ const NAV_ITEMS = [
   { name: 'Biz Center', path: '/biz-center', icon: Briefcase, roles: [Role.PROVIDER] },
 
   // Admin Items
-  { name: 'Dashboard', path: '/dashboard', icon: Home, roles: [Role.ADMIN] },
+  { name: 'Dashboard', path: '/admin', icon: Home, roles: [Role.ADMIN] },
   { name: 'Approvals & Users', path: '/staff', icon: ShieldCheck, roles: [Role.ADMIN] },
   { name: 'Platform Settlements', path: '/biz-center', icon: DollarSign, roles: [Role.ADMIN] },
   { name: 'Tech Status', path: '/admin/status', icon: Activity, roles: [Role.ADMIN] },
@@ -41,9 +42,28 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const { currentUser, logout, isLoading } = useAuth();
   const { users } = useData();
 
+  // Capture any stripe/membership session_id in the URL to preserve checkout success state across redirects
+  React.useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const sessionId = searchParams.get('session_id');
+    if (sessionId) {
+      localStorage.setItem('pending_stripe_session_id', sessionId);
+    }
+    const aiSessionId = searchParams.get('ai_session_id');
+    if (aiSessionId) {
+      localStorage.setItem('pending_ai_session_id', aiSessionId);
+    }
+  }, [location]);
+
   // Public Routes that don't need authentication
-  const publicRoutes = ['/login', '/signup', '/public/jobs', '/reset-password', '/terms', '/privacy', '/contact', '/support-public', '/services', '/pro-services', '/about'];
-  const isPublicRoute = location.pathname === '/' || publicRoutes.some(route => location.pathname.startsWith(route));
+  const publicRoutes = ['/login', '/signup', '/public/jobs', '/reset-password', '/terms', '/privacy', '/contact', '/support-public', '/services', '/pro-services', '/about', '/how-it-works', '/apply', '/landing'];
+  const hybridRoutes = ['/directory'];
+  
+  const normalizedPath = location.pathname.toLowerCase();
+  const isPublicRoute = 
+    normalizedPath === '/' || 
+    publicRoutes.some(route => normalizedPath.startsWith(route.toLowerCase())) ||
+    (!currentUser && hybridRoutes.some(route => normalizedPath.startsWith(route.toLowerCase())));
 
   if (isLoading) {
       return (
@@ -57,10 +77,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   }
 
   if (isPublicRoute) {
-      if (currentUser && (location.pathname === '/login' || location.pathname === '/signup')) {
+      if (currentUser && (normalizedPath === '/login' || normalizedPath === '/signup')) {
           return <Navigate to="/dashboard" replace />;
       }
-      return <>{children}</>;
+      return (
+          <>
+              {children}
+              <AIChatWidget />
+          </>
+      );
   }
 
   if (!currentUser) {
@@ -204,6 +229,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             {children}
         </div>
       </main>
+      <AIChatWidget />
     </div>
   );
 };

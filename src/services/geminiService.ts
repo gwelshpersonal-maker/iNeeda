@@ -1,15 +1,30 @@
-import { GoogleGenAI } from "@google/genai";
+import { auth } from '../lib/firebase';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const getAuthHeaders = async (): Promise<Record<string, string>> => {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const user = auth.currentUser;
+  if (user) {
+    try {
+      const token = await user.getIdToken();
+      headers["Authorization"] = `Bearer ${token}`;
+    } catch (e) {
+      console.error("Error retrieving Firebase ID token:", e);
+    }
+  }
+  return headers;
+};
 
 export const generateJobDescription = async (title: string, role: string) => {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Create a professional job description for a ${title} in the ${role} field. Include key responsibilities and requirements.`,
+    const headers = await getAuthHeaders();
+    const response = await fetch("/api/gemini/job-description", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ title, role }),
     });
-    
-    return response.text || "No description generated.";
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    return data.text;
   } catch (error) {
     console.error("Gemini Error:", error);
     return "Error generating content.";

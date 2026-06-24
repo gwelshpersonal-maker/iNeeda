@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { PublicNav } from '../components/PublicNav';
 import { PublicFooter } from '../components/PublicFooter';
-import { Briefcase, TrendingUp, ShieldCheck, DollarSign, Calendar, ArrowRight, CheckCircle2, Users, PieChart, FileText, MessageSquare } from 'lucide-react';
+import * as Icons from 'lucide-react';
+import { Briefcase, TrendingUp, ShieldCheck, DollarSign, Calendar, ArrowRight, CheckCircle2, Users, PieChart, FileText, MessageSquare, Wrench } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CategoryRequestModal } from '../components/CategoryRequestModal';
 import { useData } from '../contexts/DataContext';
@@ -9,7 +10,20 @@ import { Role } from '../types';
 
 export const PublicProServices: React.FC = () => {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const { addCategoryRequest } = useData();
+  const [selectedCategoryInfo, setSelectedCategoryInfo] = useState<{title: string, subtitle: string, description: string, emoji?: string, iconName?: string, colorClass?: string} | null>(null);
+  const { addCategoryRequest, serviceCategories, isLoading } = useData();
+
+  const activeCategories = React.useMemo(() => {
+    return serviceCategories.filter(c => c.isActive).map(c => c.id);
+  }, [serviceCategories]);
+
+  const getServiceDetails = (categoryId: string) => {
+    const found = serviceCategories.find(c => c.id === categoryId);
+    if (found) {
+        return { name: found.name, iconName: found.iconName, colorClass: found.colorClass, desc: found.description };
+    }
+    return { name: categoryId.replace(/_/g, ' '), iconName: 'Star', colorClass: 'text-slate-500', desc: 'Specialized service category.' };
+  };
 
   const handleCategoryRequest = async (categoryName: string, description: string, email: string, phoneNumber: string) => {
     await addCategoryRequest({
@@ -33,7 +47,7 @@ export const PublicProServices: React.FC = () => {
           {/* Hero Section */}
           <div className="text-center mb-20 max-w-4xl mx-auto">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-navy-900 mb-6 leading-tight">
-              Grow Your Business with iNeeda
+              Grow Your Business with <span className="text-blue-600">iN</span>eeda
             </h1>
             <p className="text-xl text-slate-600 leading-relaxed max-w-3xl mx-auto">
               We provide independent service professionals with the tools, leads, and protection needed to manage and scale their business—all in one place.
@@ -146,6 +160,43 @@ export const PublicProServices: React.FC = () => {
             </div>
           </div>
 
+          {/* Available Services Grid */}
+          <div className="mb-24">
+            <h2 className="text-3xl font-bold text-center text-navy-900 mb-4">Current Opportunities</h2>
+            <p className="text-lg text-slate-600 text-center max-w-2xl mx-auto mb-12">
+              Browse the types of jobs currently available on our platform. Tap any category to learn more about the work.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {isLoading ? (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-slate-500 text-lg animate-pulse">Loading active services...</p>
+                </div>
+              ) : activeCategories.length === 0 ? (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-slate-500 text-lg">No services currently available. Request a category below!</p>
+                </div>
+              ) : activeCategories.map((cat, idx) => {
+                const service = getServiceDetails(cat);
+                const Icon = (Icons as any)[service.iconName || 'Wrench'] || Icons.Wrench;
+
+                return (
+                   <div key={idx} onClick={() => setSelectedCategoryInfo({ title: service.name, subtitle: '', description: service.desc, iconName: service.iconName, colorClass: service.colorClass })} className="bg-white rounded-[2rem] p-8 text-center border-2 border-slate-100 hover:border-navy-100 hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer flex flex-col justify-between h-full group">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 bg-slate-50 ${service.colorClass || ''}`}>
+                          <Icon strokeWidth={1.5} className="w-8 h-8" />
+                        </div>
+                        <h3 className="font-extrabold text-navy-900 text-lg mb-2">{service.name}</h3>
+                        <p className="text-slate-500 text-xs font-medium line-clamp-2">{service.desc}</p>
+                      </div>
+                      <div className="mt-6 text-blue-600 font-bold text-sm tracking-wide group-hover:text-blue-700 flex items-center justify-center">
+                        Info <Icons.ArrowRight className="w-4 h-4 ml-1" />
+                      </div>
+                   </div>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Missing Category Section */}
           <div className="bg-white rounded-[3rem] p-10 md:p-12 text-center border border-slate-100 shadow-sm mb-16">
             <h2 className="text-2xl font-bold text-navy-900 mb-4">Don't see your specific expertise listed?</h2>
@@ -189,6 +240,51 @@ export const PublicProServices: React.FC = () => {
         onSubmit={handleCategoryRequest}
         userRole={Role.PROVIDER}
       />
+
+      {/* Category Info Modal */}
+      {selectedCategoryInfo && (
+        <div className="fixed inset-0 bg-navy-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setSelectedCategoryInfo(null)}
+              className="absolute top-6 right-6 text-slate-400 hover:text-navy-900 transition-colors bg-slate-100 hover:bg-slate-200 p-2 rounded-full"
+            >
+              <Icons.X className="w-5 h-5" />
+            </button>
+            <div className="flex justify-center mb-6 text-navy-900">
+              {selectedCategoryInfo.emoji ? (
+                <div className="text-6xl">{selectedCategoryInfo.emoji}</div>
+              ) : selectedCategoryInfo.iconName ? (
+                <div className={`w-24 h-24 rounded-3xl flex items-center justify-center bg-slate-50 border border-slate-100 ${selectedCategoryInfo.colorClass || ''}`}>
+                  {React.createElement((Icons as any)[selectedCategoryInfo.iconName] || Icons.Wrench, { className: "w-12 h-12", strokeWidth: 1.5 })}
+                </div>
+              ) : null}
+            </div>
+            <h3 className="text-2xl font-black text-navy-900 mb-3 text-center">{selectedCategoryInfo.title}</h3>
+            {selectedCategoryInfo.subtitle && <p className="text-slate-600 font-medium mb-6 text-center">{selectedCategoryInfo.subtitle}</p>}
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+              <h4 className="font-bold text-navy-900 mb-2 flex items-center"><Icons.CheckCircle2 className="w-5 h-5 text-emerald-500 mr-2" /> Types of Jobs</h4>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                {selectedCategoryInfo.description}
+              </p>
+            </div>
+            <div className="mt-8 flex gap-4">
+              <button 
+                onClick={() => setSelectedCategoryInfo(null)}
+                className="flex-1 py-3 text-navy-900 font-bold bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              >
+                Close
+              </button>
+              <Link 
+                to="/signup"
+                className="flex-1 py-3 text-white font-bold bg-navy-900 hover:bg-navy-800 rounded-xl transition-colors text-center"
+              >
+                Start Earning
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <PublicFooter />
     </div>

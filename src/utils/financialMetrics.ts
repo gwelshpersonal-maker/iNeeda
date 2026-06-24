@@ -15,9 +15,9 @@ export interface MarketHealthMetrics {
 }
 
 export const calculateMarketMetrics = (shifts: Shift[], users: any[]): MarketHealthMetrics => {
-  // 1. Escrow Float: Sum of prices held in SECURED or DISPUTED status
+  // 1. Escrow Float: Sum of prices held in SECURED, DISPUTED, or FROZEN status
   const escrowFloat = shifts
-    .filter(s => s.escrowStatus === 'SECURED' || s.escrowStatus === 'DISPUTED')
+    .filter(s => s.escrowStatus === 'SECURED' || s.escrowStatus === 'DISPUTED' || s.escrowStatus === 'FROZEN' || s.isFrozen)
     .reduce((sum, s) => sum + (s.price || 0), 0);
 
   // 2. Protection Reserve: Sum of collected insurance fees from completed/paid jobs

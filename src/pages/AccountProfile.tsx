@@ -5,7 +5,7 @@ import { BadgeDisplay } from '../components/BadgeDisplay';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
 import { User, Role, ServiceCategory } from '../types';
-import { UserCircle, Mail, Phone, Shield, Bell, Save, Camera, Lock, CheckCircle2, AlertCircle, ShieldCheck, FileText, Upload, ExternalLink, Hammer, Check, Clock, Plus, X, CreditCard, Wallet, ArrowRight, Info, HelpCircle, Rocket, Loader2 } from 'lucide-react';
+import { UserCircle, Mail, Phone, Shield, Bell, Save, Camera, Lock, CheckCircle2, AlertCircle, ShieldCheck, FileText, Upload, ExternalLink, Hammer, Check, Clock, Plus, X, CreditCard, Wallet, ArrowRight, Info, HelpCircle, Rocket, Loader2, Sparkles } from 'lucide-react';
 import { ALL_SERVICE_CATEGORIES, AVAILABLE_SERVICE_CATEGORIES, SERVICE_CATEGORIES } from '../constants';
 import { format } from 'date-fns';
 import { db } from '../lib/firebase';
@@ -13,7 +13,7 @@ import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
 
 export const AccountProfile = () => {
     const { currentUser } = useAuth();
-    const { updateUser, platformConfig, serviceCategories } = useData();
+    const { updateUser, platformConfig, serviceCategories, sites, addSite, deleteSite } = useData();
     
     const [isLoading, setIsLoading] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
@@ -22,7 +22,7 @@ export const AccountProfile = () => {
     const [isAddingSkill, setIsAddingSkill] = useState(false);
     const [selectedSkill, setSelectedSkill] = useState<ServiceCategory | ''>('');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'general' | 'financials' | 'provider'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'financials' | 'provider' | 'properties'>('general');
     const [checkoutUrl, setCheckoutUrl] = useState('');
 
     // Password change state (mock)
@@ -38,9 +38,15 @@ export const AccountProfile = () => {
     }, [searchParams]);
 
     useEffect(() => {
-        const sessionId = searchParams.get('session_id');
+        const urlSessionId = searchParams.get('session_id');
+        const storedSessionId = localStorage.getItem('pending_stripe_session_id');
+        const sessionId = urlSessionId || storedSessionId;
+
         if (sessionId && currentUser) {
             setIsLoading(true);
+            // Clear pending session key so we don't request verification repeatedly
+            localStorage.removeItem('pending_stripe_session_id');
+
             fetch('/api/verify-checkout-session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -50,11 +56,49 @@ export const AccountProfile = () => {
             .then(data => {
                 if (data.success) {
                     setSuccessMsg('Membership activated successfully!');
+                    setFormData(prev => ({
+                        ...prev,
+                        subscriptionStatus: 'active',
+                        subscriptionPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                    }));
                 }
                 setSearchParams({ tab: 'financials' }, { replace: true });
             })
             .catch(err => {
                 console.error("Error verifying checkout session:", err);
+            })
+            .finally(() => setIsLoading(false));
+         }
+    }, [searchParams, currentUser, setSearchParams]);
+
+    useEffect(() => {
+        const urlAiSessionId = searchParams.get('ai_session_id');
+        const storedAiSessionId = localStorage.getItem('pending_ai_session_id');
+        const aiSessionId = urlAiSessionId || storedAiSessionId;
+
+        if (aiSessionId && currentUser) {
+            setIsLoading(true);
+            localStorage.removeItem('pending_ai_session_id');
+
+            fetch('/api/verify-ai-marketing-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: aiSessionId, userId: currentUser.id })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    setSuccessMsg('Advanced AI Marketing Premium Tier activated successfully! Your profile is now preferred in Gemini proposals.');
+                    setFormData(prev => ({
+                        ...prev,
+                        aiMarketingStatus: 'active',
+                        aiMarketingPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                    }));
+                }
+                setSearchParams({ tab: 'financials' }, { replace: true });
+            })
+            .catch(err => {
+                console.error("Error verifying AI marketing session:", err);
             })
             .finally(() => setIsLoading(false));
         }
@@ -85,8 +129,15 @@ export const AccountProfile = () => {
                 subscriptionId: currentUser.subscriptionId,
                 subscriptionPeriodEnd: currentUser.subscriptionPeriodEnd,
                 stripeCustomerId: currentUser.stripeCustomerId,
+                aiMarketingStatus: currentUser.aiMarketingStatus,
+                aiMarketingId: currentUser.aiMarketingId,
+                aiMarketingPeriodEnd: currentUser.aiMarketingPeriodEnd,
                 payoutMethod: currentUser.payoutMethod || 'ZELLE',
-                zelleInfo: currentUser.zelleInfo || { emailOrPhone: '' }
+                zelleInfo: currentUser.zelleInfo || { emailOrPhone: '' },
+                socialLinks: currentUser.socialLinks || {},
+                isActive: currentUser.isActive,
+                isBackgroundCheckPaid: currentUser.isBackgroundCheckPaid,
+                verificationStatus: currentUser.verificationStatus
             });
         }
     }, [currentUser]);
@@ -105,14 +156,22 @@ export const AccountProfile = () => {
             });
             const data = await response.json();
             if (data.url) {
-                // If we're inside an iframe (like the AI Studio preview), standard location change might hit X-Frame-Options block.
-                // Best is to open in a new tab. Since it's async, it might be popup blocked.
-                const newWindow = window.open(data.url, '_blank');
-                if (!newWindow) {
-                    // Fallback: popup was blocked.
-                    // Let's not try to change window.location inside iframe because it results in a blank screen.
-                    setCheckoutUrl(data.url);
-                    setErrorMsg("Your browser blocked the payment pop-up. Please click the link above in the banner to continue to payment.");
+                if (data.url.includes('mock_') || data.url.startsWith(window.location.origin) || data.url.startsWith('/')) {
+                    // Local mock checkout: complete immediately in-place
+                    const urlObj = new URL(data.url, window.location.origin);
+                    const sessionId = urlObj.searchParams.get('session_id');
+                    if (sessionId) {
+                        localStorage.setItem('pending_stripe_session_id', sessionId);
+                        setSearchParams({ session_id: sessionId, tab: 'financials' }, { replace: true });
+                    }
+                } else {
+                    const newWindow = window.open(data.url, '_blank');
+                    if (!newWindow) {
+                        // Fallback: popup was blocked.
+                        // Let's not try to change window.location inside iframe because it results in a blank screen.
+                        setCheckoutUrl(data.url);
+                        setErrorMsg("Your browser blocked the payment pop-up. Please click the link above in the banner to continue to payment.");
+                    }
                 }
             } else {
                 throw new Error(data.error?.message || data.error || "Failed to start checkout");
@@ -120,6 +179,107 @@ export const AccountProfile = () => {
         } catch (error: any) {
             console.error("Subscription error:", error);
             setErrorMsg(error.message || "Failed to start membership checkout. Check Stripe configuration.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCancelSubscription = async () => {
+        if (!currentUser) return;
+        if (!window.confirm("Are you sure you want to cancel your Pro Membership subscription? This will deactivate your ability to bid on jobs and appear in the directory.")) return;
+        setIsLoading(true);
+        setErrorMsg('');
+        
+        try {
+            const response = await fetch('/api/cancel-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser.id })
+            });
+            const data = await response.json();
+            if (data.success) {
+                setSuccessMsg('Pro Membership subscription canceled successfully.');
+                setFormData(prev => ({
+                    ...prev,
+                    subscriptionStatus: 'canceled'
+                }));
+            } else {
+                throw new Error(data.error || "Failed to cancel subscription");
+            }
+        } catch (error: any) {
+            console.error("Pro Membership Cancellation error:", error);
+            setErrorMsg(error.message || "Failed to cancel Pro Membership subscription.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSubscribeAiMarketing = async () => {
+        if (!currentUser) return;
+        setIsLoading(true);
+        setErrorMsg('');
+        setCheckoutUrl('');
+        
+        try {
+            const response = await fetch('/api/create-ai-marketing-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser.id, email: currentUser.email, returnUrl: window.location.origin })
+            });
+            const data = await response.json();
+            if (data.url) {
+                if (data.url.includes('mock_') || data.url.startsWith(window.location.origin) || data.url.startsWith('/')) {
+                    // Local mock checkout: complete immediately in-place
+                    const urlObj = new URL(data.url, window.location.origin);
+                    const aiSessionId = urlObj.searchParams.get('ai_session_id');
+                    if (aiSessionId) {
+                        localStorage.setItem('pending_ai_session_id', aiSessionId);
+                        setSearchParams({ ai_session_id: aiSessionId, tab: 'financials' }, { replace: true });
+                    }
+                } else {
+                    const newWindow = window.open(data.url, '_blank');
+                    if (!newWindow) {
+                        setCheckoutUrl(data.url);
+                        setErrorMsg("Your browser blocked the AI marketing payment pop-up. Please click the link above in the banner to continue to payment.");
+                    }
+                }
+            } else {
+                throw new Error(data.error?.message || data.error || "Failed to start AI Marketing checkout");
+            }
+        } catch (error: any) {
+            console.error("AI Marketing Subscription error:", error);
+            setErrorMsg(error.message || "Failed to start AI Marketing subscription. Check Stripe configuration.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCancelAiMarketing = async () => {
+        if (!currentUser) return;
+        if (!window.confirm("Are you sure you want to cancel your Advanced AI Marketing subscription? This will remove your AI Preferred Partner status and priority proposals from client chats.")) return;
+        setIsLoading(true);
+        setErrorMsg('');
+        
+        try {
+            const response = await fetch('/api/cancel-ai-marketing-subscription', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser.id })
+            });
+            const data = await response.json();
+            if (data.success) {
+                setSuccessMsg('AI Marketing subscription canceled successfully.');
+                setFormData(prev => ({
+                    ...prev,
+                    aiMarketingStatus: 'inactive',
+                    badges: (prev.badges || []).filter(b => b !== 'AI_PREFERRED')
+                }));
+            } else {
+                throw new Error(data.error || "Failed to cancel subscription");
+            }
+        } catch (error: any) {
+            console.error("AI Marketing Cancellation error:", error);
+            setErrorMsg(error.message || "Failed to cancel AI Marketing subscription.");
         } finally {
             setIsLoading(false);
         }
@@ -262,14 +422,12 @@ export const AccountProfile = () => {
     };
 
     const handleDisconnectStripe = () => {
-        if (confirm("Disconnect payout method? You will not receive funds until reconnected.")) {
-            setFormData(prev => ({ ...prev, stripeAccountId: undefined }));
-            if (currentUser) {
-                updateUser({
-                    ...currentUser,
-                    stripeAccountId: undefined
-                });
-            }
+        setFormData(prev => ({ ...prev, stripeAccountId: undefined }));
+        if (currentUser) {
+            updateUser({
+                ...currentUser,
+                stripeAccountId: undefined
+            });
         }
     };
 
@@ -289,11 +447,9 @@ export const AccountProfile = () => {
     };
 
     const handleRemovePaymentMethod = () => {
-        if (confirm("Remove payment method? You will not be able to request jobs.")) {
-            setFormData(prev => ({ ...prev, hasPaymentMethod: false }));
-            if (currentUser) {
-                updateUser({ ...currentUser, hasPaymentMethod: false });
-            }
+        setFormData(prev => ({ ...prev, hasPaymentMethod: false }));
+        if (currentUser) {
+            updateUser({ ...currentUser, hasPaymentMethod: false });
         }
     };
 
@@ -499,6 +655,15 @@ export const AccountProfile = () => {
                             Financials
                         </button>
                     )}
+                    {isClient && (
+                        <button 
+                            type="button"
+                            onClick={() => setActiveTab('properties')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'properties' ? 'bg-white text-navy-900 shadow-sm' : 'text-slate-500 hover:text-navy-700'}`}
+                        >
+                            Saved Properties
+                        </button>
+                    )}
                     {isProvider && (
                         <button 
                             type="button"
@@ -577,6 +742,64 @@ export const AccountProfile = () => {
                             {(formData.businessDescription || '').length} / 500 characters
                         </div>
                     </div>
+                    
+                    <div className="pt-4 mt-4 border-t border-slate-100">
+                        <label className="block text-sm font-extrabold text-navy-900 mb-4">Promotional & Social Links</label>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">YouTube Video/Channel</label>
+                                <input 
+                                    type="url" 
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-navy-100 focus:border-navy-500 outline-none transition-all font-medium text-navy-900 text-sm"
+                                    placeholder="https://youtube.com/..."
+                                    value={formData.socialLinks?.youtube || ''}
+                                    onChange={e => setFormData({
+                                        ...formData, 
+                                        socialLinks: { ...formData.socialLinks, youtube: e.target.value }
+                                    })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">TikTok Link</label>
+                                <input 
+                                    type="url" 
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-navy-100 focus:border-navy-500 outline-none transition-all font-medium text-navy-900 text-sm"
+                                    placeholder="https://tiktok.com/@..."
+                                    value={formData.socialLinks?.tiktok || ''}
+                                    onChange={e => setFormData({
+                                        ...formData, 
+                                        socialLinks: { ...formData.socialLinks, tiktok: e.target.value }
+                                    })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Instagram Link</label>
+                                <input 
+                                    type="url" 
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-navy-100 focus:border-navy-500 outline-none transition-all font-medium text-navy-900 text-sm"
+                                    placeholder="https://instagram.com/..."
+                                    value={formData.socialLinks?.instagram || ''}
+                                    onChange={e => setFormData({
+                                        ...formData, 
+                                        socialLinks: { ...formData.socialLinks, instagram: e.target.value }
+                                    })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Threads Link</label>
+                                <input 
+                                    type="url" 
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-navy-100 focus:border-navy-500 outline-none transition-all font-medium text-navy-900 text-sm"
+                                    placeholder="https://threads.net/@..."
+                                    value={formData.socialLinks?.threads || ''}
+                                    onChange={e => setFormData({
+                                        ...formData, 
+                                        socialLinks: { ...formData.socialLinks, threads: e.target.value }
+                                    })}
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </>
             )}
             <div>
@@ -594,6 +817,7 @@ export const AccountProfile = () => {
                 </select>
                 <p className="text-xs text-slate-500 mt-1">Change your role for testing purposes.</p>
             </div>
+
             <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
                 <div className="relative">
@@ -764,13 +988,23 @@ export const AccountProfile = () => {
                 <div className="flex flex-col items-center gap-2 w-full md:w-auto">
                     <div className="text-2xl font-black text-navy-900">$20<span className="text-sm font-bold text-slate-400">/mo</span></div>
                     {['active', 'trialing'].includes(formData.subscriptionStatus || '') ? (
-                        <button 
-                            type="button"
-                            onClick={() => window.open('https://billing.stripe.com/p/login/test_mock')} // Mock portal
-                            className="w-full px-6 py-2 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all flex items-center justify-center"
-                        >
-                            Manage Billing <ExternalLink className="w-3 h-3 ml-2" />
-                        </button>
+                        <div className="flex flex-col gap-2 w-full">
+                            <button 
+                                type="button"
+                                onClick={() => window.open('https://billing.stripe.com/p/login/test_mock')} // Mock portal
+                                className="w-full px-6 py-2 bg-white border border-slate-200 text-slate-700 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all flex items-center justify-center whitespace-nowrap"
+                            >
+                                Manage Billing <ExternalLink className="w-3 h-3 ml-2" />
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={handleCancelSubscription}
+                                disabled={isLoading}
+                                className="w-full px-6 py-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-sm rounded-xl transition-all flex items-center justify-center whitespace-nowrap"
+                            >
+                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Cancel Subscription"}
+                            </button>
+                        </div>
                     ) : (
                         <button 
                             type="button"
@@ -784,6 +1018,94 @@ export const AccountProfile = () => {
                     )}
                 </div>
             )}
+        </div>
+    </div>
+
+    {/* AI Marketing Accelerator Tier */}
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
+        <div className="absolute top-0 right-0 p-4">
+             <Sparkles className={`w-12 h-12 opacity-15 text-purple-500 ${formData.aiMarketingStatus === 'active' ? 'animate-pulse' : ''}`} />
+        </div>
+        <h2 className="text-xl font-bold text-navy-900 mb-6 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-purple-600 animate-pulse" /> Advanced AI Marketing Accelerator
+            {formData.aiMarketingStatus === 'active' && (
+                <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 text-[10px] font-bold uppercase text-white shadow-sm flex items-center flex-shrink-0 animate-pulse">
+                    🚀 active AI Partner
+                </span>
+            )}
+        </h2>
+        
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-5 rounded-2xl bg-purple-50/50 border border-purple-100">
+            <div>
+                <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-bold text-navy-900 text-lg tracking-tight">AI & Gemini preferred Tier</h3>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${formData.aiMarketingStatus === 'active' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'}`}>
+                        {formData.aiMarketingStatus === 'active' ? 'Active' : 'Not Active'}
+                    </span>
+                </div>
+                <p className="text-sm text-slate-600 max-w-xl leading-relaxed">
+                    Elevate your business using our cutting-edge AI features. This advanced marketing tier grants you exclusive, real-time soliciting and priority recommendation when home and business owners interact with our Gemini AI Assistant tool.
+                </p>
+                
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-700 font-medium">
+                    <div className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-purple-600" />
+                        <span>AI Partner Pro Platform Badge</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-purple-600" />
+                        <span>Featured Directly in Gemini Chats</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-purple-600" />
+                        <span>Priority Search Placement</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-purple-600" />
+                        <span>Future AI Tools Early Access</span>
+                    </div>
+                </div>
+
+                {formData.aiMarketingStatus === 'active' && formData.aiMarketingPeriodEnd && (() => {
+                    try {
+                        const dateObj = new Date(formData.aiMarketingPeriodEnd as any);
+                        if (!isNaN(dateObj.getTime())) {
+                            return (
+                                <p className="text-xs text-purple-600 mt-4 font-semibold">
+                                    Subscription active through: <span className="font-bold">
+                                        {format(dateObj, 'MMMM d, yyyy')}
+                                    </span>
+                                </p>
+                            );
+                        }
+                    } catch (e) { console.error('Date parse error', e); }
+                    return null;
+                })()}
+            </div>
+
+            <div className="flex flex-col items-center gap-2 w-full md:w-auto shrink-0">
+                <div className="text-2xl font-black text-navy-900">$15<span className="text-sm font-bold text-slate-400">/mo</span></div>
+                {formData.aiMarketingStatus === 'active' ? (
+                    <button 
+                        type="button"
+                        onClick={handleCancelAiMarketing}
+                        disabled={isLoading}
+                        className="w-full px-6 py-2.5 bg-white border border-purple-200 text-purple-700 hover:text-red-600 hover:border-red-200 hover:bg-red-50 font-bold text-sm rounded-xl transition-all flex items-center justify-center shadow-sm"
+                    >
+                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Cancel Subscription"}
+                    </button>
+                ) : (
+                    <button 
+                        type="button"
+                        onClick={handleSubscribeAiMarketing}
+                        disabled={isLoading}
+                        className="w-full px-8 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-bold rounded-xl shadow-lg hover:shadow-purple-200 transition-all flex items-center justify-center transform hover:-translate-y-0.5"
+                    >
+                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                        Upgrade to AI Tier
+                    </button>
+                )}
+            </div>
         </div>
     </div>
 
@@ -1118,6 +1440,35 @@ export const AccountProfile = () => {
                 Your payment details are stored securely by Stripe. We do not keep full card numbers.
             </div>
         </div>
+
+        {/* Corporate Billing Section */}
+        <div className="mt-6 p-5 rounded-2xl bg-slate-50 border border-slate-200">
+            <div className="flex items-start">
+                <div className="p-3 bg-white rounded-full border border-slate-200 mr-4 shadow-sm">
+                    <FileText className="w-6 h-6 text-slate-600" />
+                </div>
+                <div className="flex-1">
+                    <h3 className="font-bold text-navy-900 text-lg">Corporate Weekly Invoicing</h3>
+                    <p className="text-sm text-slate-600 mt-1 mb-4">
+                        Ideal for Corporate Accounting Departments. Instead of per-job credit card charges, we automatically aggregate all completed and verified transactions into a single weekly invoice summary.
+                    </p>
+                    <label className="flex items-center cursor-pointer mb-2">
+                        <div className="relative">
+                            <input 
+                                type="checkbox" 
+                                className="sr-only"
+                                checked={formData.billingPreference === 'WEEKLY_INVOICE'}
+                                onChange={(e) => setFormData({ ...formData, billingPreference: e.target.checked ? 'WEEKLY_INVOICE' : 'CREDIT_CARD' })}
+                            />
+                            <div className={`block w-14 h-8 rounded-full transition-colors ${formData.billingPreference === 'WEEKLY_INVOICE' ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                            <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${formData.billingPreference === 'WEEKLY_INVOICE' ? 'transform translate-x-6' : ''}`}></div>
+                        </div>
+                        <span className="ml-3 font-bold text-navy-900">Enable Weekly Invoicing</span>
+                    </label>
+                    <p className="text-xs text-emerald-700 bg-emerald-50 p-2 rounded inline-block mt-2 font-medium">Subject to credit approval. Net-15 payment terms apply.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
                                 </>
@@ -1310,6 +1661,32 @@ export const AccountProfile = () => {
 
                     </div>
                 )}
+
+                {activeTab === 'properties' && (
+                    <div className="space-y-6 animate-in fade-in">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                            <h2 className="text-xl font-bold text-navy-900 mb-6 flex items-center">
+                                <Plus className="w-5 h-5 mr-2 text-indigo-500" /> Saved Properties
+                            </h2>
+                            <p className="text-sm text-slate-500 mb-4">Manage multiple property addresses. These will be available in the dropdown when creating a new request.</p>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {sites.filter(s => s.orgId === currentUser?.orgId).map(site => (
+                                    <div key={site.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-start">
+                                        <div>
+                                            <h3 className="font-bold text-navy-900">{site.name}</h3>
+                                            <p className="text-sm text-slate-600">{site.address}</p>
+                                        </div>
+                                        <button type="button" onClick={() => deleteSite(site.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                
                 <div className="flex justify-end pt-4">
                     <button 
                         type="submit"

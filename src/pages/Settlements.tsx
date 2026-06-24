@@ -7,6 +7,8 @@ import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { Download, Check, AlertTriangle, FileText, Calendar, Mail, Wallet, Star, DollarSign, Clock, Info, ShieldCheck, Settings, Save, X, ToggleLeft, ToggleRight, Briefcase, CreditCard, Lock, PauseCircle, Scale, Image as ImageIcon, ArrowRight, ShieldAlert, Activity, AlertOctagon, Eye } from 'lucide-react';
 import { ALL_SERVICE_CATEGORIES } from '../constants';
 import { calculateMarketMetrics } from '../utils/financialMetrics';
+import { calculatePlatformFee } from '../utils/feeEngine';
+import { RateCategory } from '../types';
 import { AdminPayouts } from '../components/AdminPayouts';
 
 export const Settlements = () => {
@@ -38,14 +40,17 @@ export const Settlements = () => {
   const metrics = calculateMarketMetrics(shifts, users);
 
   const calculateFees = (shift: Shift) => {
-      // 1. Determine Platform Fee %
-      // Use stored snapshot if available (for historical accuracy), otherwise use current config
-      // SAFETY: If feePercent is > 1 (e.g. 15), it was stored as integer % instead of decimal. 
-      let feePercent = shift.appliedPlatformFee !== undefined 
-          ? shift.appliedPlatformFee 
-          : (platformConfig[shift.category]?.platformFeePercent || 20) / 100;
+      // Base Gross is the Original Price
+      const baseGross = shift.price || 0;
       
-      if (feePercent > 1) feePercent = feePercent / 100;
+      // Effective Gross is reduced by any refunds given to the client
+      const refund = shift.refundAmount || 0;
+      const effectiveGross = baseGross - refund;
+
+      // 1. Determine Platform Fee
+      const rateCategoryToUse: RateCategory = shift.rateCategory || platformConfig[shift.category]?.rateCategory || 'STANDARD';
+      const { platformFee: platformFeeAmount } = calculatePlatformFee(effectiveGross, rateCategoryToUse);
+      const feePercent = effectiveGross > 0 ? platformFeeAmount / effectiveGross : 0; // Reverse-calculate effective %
 
       // 2. Determine Insurance Deduction
       let insuranceAmount = 0;
@@ -68,26 +73,15 @@ export const Settlements = () => {
           }
       }
 
-      // Base Gross is the Original Price
-      const baseGross = shift.price || 0;
-      
-      // Effective Gross is reduced by any refunds given to the client
-      const refund = shift.refundAmount || 0;
-      const effectiveGross = baseGross - refund;
-
-      // Fees are calculated on the Base Gross (Platform takes its cut on the deal value) 
-      // OR Effective Gross? Usually platforms take fee on what was actually paid out/processed.
-      // Let's assume Platform Fee is adjusted if refund happens, to be fair to provider.
-      const platformFeeAmount = effectiveGross * feePercent;
-      
       const net = effectiveGross - platformFeeAmount - insuranceAmount;
 
       return {
           gross: baseGross,
           effectiveGross,
           refund,
-          feePercent,
+          feePercent: feePercent,
           platformFeeAmount,
+          rateCategory: rateCategoryToUse,
           insuranceAmount,
           insuranceLabel,
           net
@@ -124,13 +118,11 @@ export const Settlements = () => {
           alert("Cannot payout a disputed job. Resolve the dispute first.");
           return;
       }
-      if (confirm(`Mark ${shift.description} as SETTLED? This confirms funds have been transferred to the provider.`)) {
-          updateShift({
-              ...shift,
-              isPaid: true,
-              escrowStatus: 'RELEASED'
-          });
-      }
+      updateShift({
+          ...shift,
+          isPaid: true,
+          escrowStatus: 'RELEASED'
+      });
   };
 
   const handleOpenDispute = (shift: Shift) => {
@@ -520,6 +512,10 @@ export const Settlements = () => {
                                                 <span className="inline-flex items-center text-[10px] text-red-700 font-bold bg-white px-2.5 py-1.5 rounded-lg border border-red-200 uppercase tracking-wide">
                                                     <Lock className="w-3 h-3 mr-1" /> Disputed
                                                 </span>
+                                            ) : shift.isFrozen ? (
+                                                <span className="inline-flex items-center text-[10px] text-orange-700 font-bold bg-orange-50 px-2.5 py-1.5 rounded-lg border border-orange-200 uppercase tracking-wide animate-pulse">
+                                                    <PauseCircle className="w-3 h-3 mr-1 text-orange-600" /> Frozen
+                                                </span>
                                             ) : shift.isPaid ? (
                                                 <span className="inline-flex items-center text-[10px] text-green-700 font-bold bg-green-50 px-2.5 py-1.5 rounded-lg border border-green-100 uppercase tracking-wide">
                                                     <Check className="w-3 h-3 mr-1" /> Paid
@@ -528,16 +524,50 @@ export const Settlements = () => {
                                                 isAdmin && (
                                                     <button 
                                                         onClick={() => handleMarkPaid(shift)}
-                                                        className="text-[10px] bg-navy-900 text-white px-3 py-1.5 rounded-lg hover:bg-navy-800 font-bold shadow-sm inline-flex items-center"
+                                                        className="text-[10px] bg-navy-900 text-white px-3 py-1.5 rounded-lg hover:bg-navy-800 font-bold shadow-sm inline-flex items-center cursor-pointer"
                                                     >
                                                         <DollarSign className="w-3 h-3 mr-1" /> Pay
                                                     </button>
                                                 )
                                             )}
                                             
+                                            {isAdmin && !shift.isPaid && !isDisputed && !shift.isFrozen && (
+                                                <button
+                                                    onClick={() => {
+                                                        updateShift({
+                                                            ...shift,
+                                                            isFrozen: true,
+                                                            escrowStatus: 'FROZEN'
+                                                        });
+                                                        alert("Hold Applied: Shift payout frozen and automated workflows paused.");
+                                                    }}
+                                                    className="text-[10px] bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1.5 rounded-lg font-bold shadow-sm inline-flex items-center cursor-pointer"
+                                                    title="Freeze Payout"
+                                                >
+                                                    <PauseCircle className="w-3 h-3 mr-1" /> Freeze
+                                                </button>
+                                            )}
+
+                                            {isAdmin && shift.isFrozen && (
+                                                <button
+                                                    onClick={() => {
+                                                        updateShift({
+                                                            ...shift,
+                                                            isFrozen: false,
+                                                            escrowStatus: 'SECURED'
+                                                        });
+                                                        alert("Hold Cleared: Hold lifted. Timelines and payout triggers active.");
+                                                    }}
+                                                    className="text-[10px] bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm inline-flex items-center cursor-pointer"
+                                                    title="Unfreeze Payout"
+                                                >
+                                                    <Check className="w-3 h-3 mr-1" /> Unfreeze
+                                                </button>
+                                            )}
+                                            
                                             <button 
                                                 onClick={() => setViewJob(shift)}
-                                                className="p-1.5 text-slate-400 hover:text-navy-600 hover:bg-white rounded-lg transition-colors"
+                                                className="p-1.5 text-slate-400 hover:text-navy-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
                                                 title="View Job Report & Feedback"
                                             >
                                                 <Eye className="w-4 h-4" />
@@ -829,7 +859,7 @@ export const Settlements = () => {
                       <div className="grid grid-cols-1 gap-4">
                           {serviceCategories.map(categoryObj => {
                               const category = categoryObj.id;
-                              const config = tempConfig[category] || { platformFeePercent: 20, insuranceRule: { type: 'FLAT', value: 2.00 }, requiresInsurance: false };
+                              const config = tempConfig[category] || { rateCategory: 'STANDARD', insuranceRule: { type: 'FLAT', value: 2.00 }, requiresInsurance: false };
                               return (
                                   <div key={category} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-6 transition-all hover:border-blue-200 hover:shadow-md">
                                       <div className="w-full md:w-1/4">
@@ -840,12 +870,15 @@ export const Settlements = () => {
                                       <div className="flex-1 border-l border-slate-100 pl-6">
                                           <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Platform Commission</label>
                                           <div className="flex items-center gap-2">
-                                              <input 
-                                                  type="number" min="0" max="100" value={config.platformFeePercent}
-                                                  onChange={(e) => updateCategoryRule(category, 'platformFeePercent', parseFloat(e.target.value))}
-                                                  className="w-20 p-2 bg-slate-50 border border-slate-300 rounded-lg text-center font-bold text-navy-900 outline-none focus:ring-2 focus:ring-gold-400"
-                                              />
-                                              <span className="text-sm font-bold text-slate-700">%</span>
+                                              <select 
+                                                  value={config.rateCategory || 'STANDARD'}
+                                                  onChange={(e) => updateCategoryRule(category, 'rateCategory', e.target.value)}
+                                                  className="w-full text-sm p-2 rounded-lg border border-slate-300 bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-navy-900"
+                                              >
+                                                  <option value="RECURRING">Recurring (8%)</option>
+                                                  <option value="STANDARD">Standard (15%)</option>
+                                                  <option value="SPECIALIZED">Specialized (15%, up to $60)</option>
+                                              </select>
                                           </div>
                                       </div>
                                       {/* Insurance Config */}

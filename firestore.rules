@@ -54,13 +54,13 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && (
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
+      let user = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return isAuthenticated() && (request.auth.token.admin == true || (user != null && user.data.get('role', '') == 'ADMIN'));
     }
 
     function isAdminOrManager() {
-      return isAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'MANAGER']);
+      let user = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return isAuthenticated() && (request.auth.token.admin == true || request.auth.token.manager == true || (user != null && user.data.get('role', '') in ['ADMIN', 'MANAGER']));
     }
 
     function isVerificationVerified() {
@@ -68,8 +68,8 @@ service cloud.firestore {
     }
 
     function isSubscribedPro() {
-      let user = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-      return user.role == 'PROVIDER' && (user.subscriptionStatus == 'active' || user.isFoundersClub == true);
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null && userDoc.data.get('role', '') == 'PROVIDER' && (userDoc.data.get('subscriptionStatus', '') == 'active' || userDoc.data.get('isFoundersClub', false) == true);
     }
 
     function hasRequiredFields(fields) {
@@ -148,7 +148,8 @@ service cloud.firestore {
              data.id is string &&
              data.shiftId is string &&
              data.senderId is string &&
-             data.content is string && data.content.size() > 0 && data.content.size() < 5000 &&
+             data.content is string && data.content.size() < 5000 &&
+             (data.content.size() > 0 || (data.keys().hasAll(['attachments']) && data.attachments is list && data.attachments.size() > 0)) &&
              data.read is bool;
     }
 
@@ -182,7 +183,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
-                    request.resource.data.role != 'ADMIN' && 
+                    (request.resource.data.role != 'ADMIN' || request.resource.data.email in ['gwelshpersonal@gmail.com', 'admin@ineeda.work']) && 
                     !('subscriptionStatus' in request.resource.data) &&
                     !('isFoundersClub' in request.resource.data);
       allow update: if (isAdminOrManager() || (
@@ -214,9 +215,9 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated() && isValidShift(request.resource.data);
       allow update: if isAuthenticated() && 
-                    (resource.data.clientId == request.auth.uid || isSubscribedPro() || isAdmin()) && 
+                    (resource.data.get('clientId', '') == request.auth.uid || isSubscribedPro() || isAdmin()) && 
                     isValidShift(request.resource.data);
-      allow delete: if isAdmin() || (resource.data.clientId == request.auth.uid && (resource.data.status == 'PENDING' || resource.data.status == 'OPEN_REQUEST' || resource.data.status == 'SUSPENDED'));
+      allow delete: if isAdmin() || (resource.data.get('clientId', '') == request.auth.uid && (resource.data.get('status', '') == 'PENDING' || resource.data.get('status', '') == 'OPEN_REQUEST' || resource.data.get('status', '') == 'SUSPENDED'));
     }
 
     match /quotes/{quoteId} {
@@ -294,6 +295,12 @@ service cloud.firestore {
     match /founders_club_applications/{appId} {
       allow read: if isAdminOrManager();
       allow create: if true;
+      allow update, delete: if isAdminOrManager();
+    }
+
+    match /prelaunch_leads/{leadId} {
+      allow read: if isAdminOrManager();
+      allow create: if isValidEmail(request.resource.data.email);
       allow update, delete: if isAdminOrManager();
     }
 

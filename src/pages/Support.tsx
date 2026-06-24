@@ -55,9 +55,7 @@ export const Support = () => {
     };
 
     const handleDeleteFaq = (id: string) => {
-        if (confirm("Are you sure you want to delete this FAQ?")) {
-            deleteFaq(id);
-        }
+        deleteFaq(id);
     };
 
     const getDocIcon = (category: string) => {
@@ -192,7 +190,7 @@ export const Support = () => {
                         onClick={() => setActiveTab('CAREERS')}
                         className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'CAREERS' ? 'bg-navy-800 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
                     >
-                        Join iNeeda
+                        Join <span className="text-blue-600">iN</span>eeda
                     </button>
                 </div>
             </div>
@@ -218,7 +216,7 @@ export const Support = () => {
                     </div>
                     <h3 className="font-bold text-navy-900 mb-1">Email Us</h3>
                     <p className="text-sm text-slate-600">Anytime</p>
-                    <a href="mailto:support@ineeda.work" className="text-gold-600 font-bold mt-2 hover:underline">support@ineeda.work</a>
+                    <a href="mailto:service@ineeda.work" className="text-gold-600 font-bold mt-2 hover:underline">service@ineeda.work</a>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl border border-gold-200 shadow-sm flex flex-col items-center text-center">

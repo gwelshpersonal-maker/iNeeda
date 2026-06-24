@@ -1,7 +1,7 @@
 import React from 'react';
 import { BadgeType } from '../types';
 import { BADGE_GROUPS } from '../constants';
-import { ShieldCheck, Award, Star, Heart, FileCheck, MapPin, Zap, Repeat, CheckCircle2, ShieldAlert, Dog } from 'lucide-react';
+import { ShieldCheck, Award, Star, Heart, FileCheck, MapPin, Zap, Repeat, CheckCircle2, ShieldAlert, Dog, Sparkles } from 'lucide-react';
 
 interface BadgeDisplayProps {
     badges?: BadgeType[];
@@ -17,10 +17,11 @@ const getBadgeIcon = (badgeId: BadgeType, className: string) => {
         case 'LICENSED_SPECIALIST': return <Award className={className} />;
         case 'CLEAN_SLATE': return <CheckCircle2 className={className} />;
         case 'FAST_RESPONDER': return <Zap className={className} />;
-        case 'REPEAT_GUY': return <Repeat className={className} />;
+        case 'REPEAT_PRO': return <Repeat className={className} />;
         case 'TOP_RATED': return <Star className={className} />;
         case 'CHILD_SAFETY_CLEARED': return <Heart className={className} />;
         case 'PET_FRIENDLY': return <Dog className={className} />;
+        case 'AI_PREFERRED': return <Sparkles className={`${className} text-purple-600 animate-pulse`} />;
         default: return <Award className={className} />;
     }
 };

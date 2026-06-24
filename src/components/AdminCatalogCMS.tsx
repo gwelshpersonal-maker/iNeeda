@@ -37,9 +37,7 @@ export const AdminCatalogCMS: React.FC = () => {
     };
 
     const handleDelete = (id: string) => {
-        if (confirm("Are you sure you want to delete this category?")) {
-            deleteServiceCategory(id);
-        }
+        deleteServiceCategory(id);
     };
 
     const startNew = () => {

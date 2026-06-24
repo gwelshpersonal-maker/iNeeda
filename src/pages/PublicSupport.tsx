@@ -32,7 +32,7 @@ export const PublicSupport: React.FC = () => {
                     onClick={() => setActiveTab('CAREERS')}
                     className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'CAREERS' ? 'bg-navy-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
                 >
-                    Join iNeeda
+                    Join <span className="text-blue-600">iN</span>eeda
                 </button>
             </div>
           </div>
@@ -48,7 +48,7 @@ export const PublicSupport: React.FC = () => {
                   onClick={() => setActiveTab('CAREERS')}
                   className={`flex-1 px-4 py-2 text-sm font-bold rounded-md transition-all ${activeTab === 'CAREERS' ? 'bg-navy-800 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
               >
-                  Join iNeeda
+                  Join <span className="text-blue-600">iN</span>eeda
               </button>
           </div>
 
@@ -73,7 +73,7 @@ export const PublicSupport: React.FC = () => {
                     </div>
                     <h3 className="font-bold text-navy-900 mb-2">Email Us</h3>
                     <p className="text-sm text-slate-600">Anytime</p>
-                    <a href="mailto:support@ineeda.work" className="text-gold-600 font-bold mt-3 hover:underline text-lg">support@ineeda.work</a>
+                    <a href="mailto:service@ineeda.work" className="text-gold-600 font-bold mt-3 hover:underline text-lg">service@ineeda.work</a>
                 </div>
 
                 <div className="bg-white p-8 rounded-2xl border border-gold-200 shadow-sm flex flex-col items-center text-center hover:shadow-md transition-shadow">

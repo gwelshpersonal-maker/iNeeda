@@ -26,8 +26,9 @@ export enum ShiftStatus {
 }
 
 export type ShiftType = 'SCHEDULED' | 'URGENT';
-export type EscrowStatus = 'PENDING' | 'SECURED' | 'DISPUTED' | 'RELEASED' | 'REFUNDED' | 'PARTIAL_REFUND';
+export type EscrowStatus = 'PENDING' | 'SECURED' | 'DISPUTED' | 'RELEASED' | 'REFUNDED' | 'PARTIAL_REFUND' | 'FROZEN';
 export type SelectionMethod = 'QUICK_BID' | 'BIDDING';
+export type RateCategory = 'RECURRING' | 'STANDARD' | 'SPECIALIZED';
 
 export type ServiceCategory = string;
 
@@ -68,7 +69,8 @@ export interface InsuranceRule {
 }
 
 export interface CategoryRule {
-    platformFeePercent: number; // e.g. 20 for 20%
+    rateCategory?: RateCategory; // Category determining platform fee (RECURRING, STANDARD, SPECIALIZED)
+    platformFeePercent?: number; // legacy, keeping for backward compatibility
     insuranceRule: InsuranceRule;
     requiresInsurance: boolean; // Gating: If true, unverified pros cannot see these
 }
@@ -89,10 +91,11 @@ export type BadgeType =
   | 'LICENSED_SPECIALIST'
   | 'CLEAN_SLATE'
   | 'FAST_RESPONDER'
-  | 'REPEAT_GUY'
+  | 'REPEAT_PRO'
   | 'TOP_RATED'
   | 'CHILD_SAFETY_CLEARED'
-  | 'PET_FRIENDLY';
+  | 'PET_FRIENDLY'
+  | 'AI_PREFERRED';
 
 export interface SubscriptionPayment {
   id: string;
@@ -116,6 +119,7 @@ export interface User {
   isActive: boolean;
   phone: string;
   badges?: BadgeType[];
+  billingPreference?: 'CREDIT_CARD' | 'WEEKLY_INVOICE';
   
   // Custom Payouts
   payoutMethod?: 'STRIPE' | 'ZELLE';
@@ -137,6 +141,14 @@ export interface User {
   jobsCompleted?: number;
   vendorType?: string;
   
+  // Marketing & Social
+  socialLinks?: {
+    youtube?: string;
+    tiktok?: string;
+    threads?: string;
+    instagram?: string;
+  };
+
   // Financials
   stripeAccountId?: string; // Connected account ID for payouts (Provider)
   hasPaymentMethod?: boolean; // Does user have a card on file? (Client)
@@ -166,7 +178,14 @@ export interface User {
   stripeCustomerId?: string;
   isFoundersClub?: boolean; // Founders Club members do not pay subscription fees
 
+  // AI Marketing Tier Subscription
+  aiMarketingStatus?: 'active' | 'inactive' | 'none';
+  aiMarketingId?: string;
+  aiMarketingPeriodEnd?: Date;
+
   createdAt?: Date; // When the user account was created
+  noShowCount?: number;
+  noShowGigs?: string[];
 }
 
 export interface PayFeedback {
@@ -211,8 +230,10 @@ export interface Shift {
   status: ShiftStatus;
   selectionMethod?: SelectionMethod;
   isRecurring: boolean;
+  recurringFrequency?: 'TWICE_A_WEEK' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
   type?: ShiftType;
   price?: number;        // Flat rate price for the job
+  rateCategory?: RateCategory; // Category determining platform fee
   platformFee?: number;   // PLATFORM COMMISSION
   insuranceFee?: number;  // PROTECTION FEE
   
@@ -232,6 +253,15 @@ export interface Shift {
   // Stripe Integration
   stripePaymentIntentId?: string; // ID of the hold on client's card
   payoutTimestamp?: string; // ISO string of when payout was released
+  
+  // Manual Payout Integration
+  payoutReconciled?: boolean;
+  payoutReconciledAt?: string;
+  payoutReference?: string;
+  
+  // Job Evidence
+  beforePhotos?: string[]; // Photos uploaded before starting
+  afterPhotos?: string[]; // Photos uploaded after completion
   
   createdAt?: Date;      // When the request was posted
   isBoosted?: boolean;   // If the price has been bumped by the client
@@ -276,6 +306,16 @@ export interface Shift {
   
   // Photos
   arrivalPhotos?: string[]; // URLs or Base64 strings of arrival photos (Check-in)
+
+  // Geofencing and Automations
+  geofenceOverridePending?: boolean;
+  geofenceOverridePhoto?: string;
+  geofenceOverrideReason?: string;
+  geofenceOverrideApproved?: boolean;
+  noShowNotificationSent?: boolean;
+  noShowRecorded?: boolean;
+  isFrozen?: boolean;
+  reviewWindowExpiresAt?: Date;
 }
 
 export interface Attachment {

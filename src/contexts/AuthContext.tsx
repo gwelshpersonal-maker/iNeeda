@@ -14,6 +14,7 @@ interface AuthContextType {
   logout: () => void;
   resetPassword: (email: string) => Promise<void>;
   confirmPasswordReset: (code: string, newPassword: string) => Promise<void>;
+  isAdmin: boolean;
   isManager: boolean; 
   isLoading: boolean;
 }
@@ -23,12 +24,26 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { users, isLoading: isDataLoading } = useData();
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [isManager, setIsManager] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [syncTimeoutExpired, setSyncTimeoutExpired] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
+      if (user) {
+        try {
+          const idTokenResult = await user.getIdTokenResult();
+          setIsAdmin(!!idTokenResult.claims.admin);
+          setIsManager(!!idTokenResult.claims.manager || !!idTokenResult.claims.admin);
+        } catch (error) {
+          console.error("Failed to parse custom claims:", error);
+        }
+      } else {
+        setIsAdmin(false);
+        setIsManager(false);
+      }
       setAuthLoading(false);
       setSyncTimeoutExpired(false); // Reset timeout on auth change
     });
@@ -81,11 +96,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await signOut(auth);
   };
   
-  // Strict Manager Check: Only ADMIN or legacy MANAGER role.
-  const isManager = currentUser?.role === Role.ADMIN || currentUser?.role === Role.MANAGER; 
+  // Strict Manager Check: Handled by custom claims inside state above.
+  // We keep the currentUser.role as a fallback for UI rendering, but claims verify backend actions.
+  const uiIsManager = isManager || currentUser?.role === Role.ADMIN || currentUser?.role === Role.MANAGER; 
+  const uiIsAdmin = isAdmin || currentUser?.role === Role.ADMIN;
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, loginWithGoogle, signup, logout, resetPassword, confirmPasswordReset: confirmPasswordResetAction, isManager, isLoading }}>
+    <AuthContext.Provider value={{ currentUser, login, loginWithGoogle, signup, logout, resetPassword, confirmPasswordReset: confirmPasswordResetAction, isManager: uiIsManager, isAdmin: uiIsAdmin, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

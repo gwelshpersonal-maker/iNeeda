@@ -10,10 +10,12 @@ export const Contact: React.FC = () => {
   const [msgBody, setMsgBody] = useState('');
   const [msgEmail, setMsgEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [status, setStatus] = useState<{ type: 'success' | 'warning' | 'error', message: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       setIsSubmitting(true);
+      setStatus(null);
       
       try {
         const newDocRef = doc(collection(db, 'supportMessages'));
@@ -27,13 +29,55 @@ export const Contact: React.FC = () => {
         };
         await setDoc(newDocRef, messageData);
 
-        alert("Your message has been sent. We'll reply within 24 hours.");
+        // Attempt to send an email to service@ineeda.work
+        let emailDispatched = true;
+        try {
+          const emailHtml = `
+            <h3>New Contact Form Submission</h3>
+            <p><strong>From:</strong> ${msgEmail}</p>
+            <p><strong>Subject:</strong> ${msgSubject}</p>
+            <p><strong>Message:</strong></p>
+            <p>${msgBody.replace(/\n/g, '<br/>')}</p>
+          `;
+          const emailRes = await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: 'service@ineeda.work',
+              subject: `New Contact Form: ${msgSubject}`,
+              html: emailHtml
+            })
+          });
+          
+          if (!emailRes.ok) {
+            const errData = await emailRes.json().catch(() => ({}));
+            throw new Error(errData.error || `Server returned status ${emailRes.status}`);
+          }
+        } catch (emailErr) {
+          console.error("Failed to trigger support email dispatch, but message was saved in Firestore:", emailErr);
+          emailDispatched = false;
+        }
+
+        if (emailDispatched) {
+          setStatus({
+            type: 'success',
+            message: "Your message has been sent successfully. We will reply within 24 hours!"
+          });
+        } else {
+          setStatus({
+            type: 'warning',
+            message: "Your message was saved to our database, but we encountered an issue dispatching the instant notification email. Rest assured, our support team can still view your inquiry in the administration dashboard!"
+          });
+        }
         setMsgSubject('');
         setMsgBody('');
         setMsgEmail('');
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to send message:", error);
-        alert("There was an error sending your message. Please try again.");
+        setStatus({
+          type: 'error',
+          message: error?.message || "There was an error sending your message. Please try again."
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -57,6 +101,36 @@ export const Contact: React.FC = () => {
                 <h2 className="text-2xl font-bold text-navy-900 mb-6 flex items-center">
                     <MessageSquare className="w-6 h-6 mr-3 text-gold-500" /> Send a Message
                 </h2>
+
+                {status && (
+                    <div className={`p-4 mb-6 rounded-2xl flex items-start gap-3 border ${
+                        status.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
+                        status.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' :
+                        'bg-rose-50 border-rose-200 text-rose-800'
+                    }`}>
+                        <div className="mt-0.5 shrink-0">
+                            {status.type === 'success' && (
+                                <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            )}
+                            {status.type === 'warning' && (
+                                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            )}
+                            {status.type === 'error' && (
+                                <svg className="w-5 h-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            )}
+                        </div>
+                        <div className="text-sm font-medium leading-relaxed">
+                            {status.message}
+                        </div>
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">Your Email</label>
@@ -125,7 +199,7 @@ export const Contact: React.FC = () => {
                     <div>
                         <h3 className="font-bold text-navy-900 text-lg mb-1">Email Us</h3>
                         <p className="text-sm text-slate-600 mb-2">Typically reply within 24 hours.</p>
-                        <a href="mailto:support@ineeda.work" className="text-gold-600 font-bold hover:underline">support@ineeda.work</a>
+                        <a href="mailto:service@ineeda.work" className="text-gold-600 font-bold hover:underline">service@ineeda.work</a>
                     </div>
                 </div>
 

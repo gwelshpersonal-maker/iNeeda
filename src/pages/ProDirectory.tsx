@@ -1,22 +1,49 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Role, ShiftStatus } from '../types';
-import { Users, Search, Filter, ShieldCheck, MapPin, Star, UserPlus, CheckCircle2, X } from 'lucide-react';
+import { Users, Search, Filter, ShieldCheck, MapPin, Star, UserPlus, CheckCircle2, X, Send, Youtube, Instagram, Link as LinkIcon, MessageCircle, LogIn } from 'lucide-react';
 import { ALL_SERVICE_CATEGORIES } from '../constants';
 import { BadgeDisplay } from '../components/BadgeDisplay';
+import { PublicNav } from '../components/PublicNav';
+import { PublicFooter } from '../components/PublicFooter';
 
 import { getProviderStats } from '../utils/providerStats';
 
 export const ProDirectory = () => {
-    const { users, updateUser, serviceCategories, shifts } = useData();
+    const { users, updateUser, serviceCategories, shifts, publicProfiles } = useData();
     const { currentUser } = useAuth();
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const urlCategory = searchParams.get('category') || 'ALL';
+    const urlPro = searchParams.get('pro') || '';
+    const urlSearch = searchParams.get('search') || searchParams.get('q') || '';
     
-    const [searchQuery, setSearchQuery] = useState('');
-    const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+    const [searchQuery, setSearchQuery] = useState(urlSearch);
+    const [categoryFilter, setCategoryFilter] = useState<string>(urlCategory);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'ALL' | 'CREW'>('ALL');
-    const [expandedPros, setExpandedPros] = useState<Set<string>>(new Set());
+    const [expandedPros, setExpandedPros] = useState<Set<string>>(new Set(urlPro ? [urlPro] : []));
+    const [authModalOpen, setAuthModalOpen] = useState(false);
+    const [authModalText, setAuthModalText] = useState('');
+
+    // Handle incoming URL parameters dynamically for indexing/deep-linking
+    React.useEffect(() => {
+        if (urlCategory !== 'ALL' && urlCategory !== categoryFilter) {
+            setCategoryFilter(urlCategory);
+        }
+        if (urlSearch && urlSearch !== searchQuery) {
+            setSearchQuery(urlSearch);
+        }
+        if (urlPro && !expandedPros.has(urlPro)) {
+            setExpandedPros(prev => {
+                const next = new Set(prev);
+                next.add(urlPro);
+                return next;
+            });
+        }
+    }, [urlCategory, urlSearch, urlPro]);
 
     const toggleExpandPro = (proId: string) => {
         setExpandedPros(prev => {
@@ -27,23 +54,79 @@ export const ProDirectory = () => {
         });
     };
 
-    // Only show VERIFIED providers, but let current user see their own card
-    const directoryPros = users.filter(u => 
+    // Fallback to publicProfiles if users list is empty (e.g., for guest/logged-out clients)
+    const sourcePros = currentUser ? users : (publicProfiles as any[]);
+
+    // Show verified active providers, or let logged-in user see their own card
+    const directoryPros = sourcePros.filter(u => 
         u.role === Role.PROVIDER && 
-        (u.verificationStatus === 'VERIFIED' || u.id === currentUser?.id)
+        (u.verificationStatus === 'VERIFIED' || u.isActive === true || u.id === currentUser?.id)
     );
 
     const filteredPros = directoryPros.filter(pro => {
         if (viewMode === 'CREW' && !currentUser?.crewList?.includes(pro.id)) return false;
 
-        const matchesSearch = pro.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                              pro.email.toLowerCase().includes(searchQuery.toLowerCase());
+        const queryLower = searchQuery.toLowerCase().trim();
+        let matchesSearch = true;
+
+        if (queryLower) {
+            const matchesName = pro.name?.toLowerCase().includes(queryLower);
+            const matchesCompany = pro.companyName?.toLowerCase().includes(queryLower);
+            const matchesEmail = pro.email?.toLowerCase().includes(queryLower);
+            const matchesDesc = pro.businessDescription?.toLowerCase().includes(queryLower);
+            
+            // Match against skills / categories
+            let matchesSkill = false;
+            if (pro.skills && Array.isArray(pro.skills)) {
+                matchesSkill = pro.skills.some(skillKey => {
+                    const skillLower = skillKey.toLowerCase();
+                    if (skillLower.includes(queryLower)) return true;
+                    
+                    // Also match against standard user-friendly category definitions
+                    const catDef = serviceCategories.find(c => c.id === skillKey);
+                    if (catDef) {
+                        if (catDef.name?.toLowerCase().includes(queryLower)) return true;
+                        if (catDef.description?.toLowerCase().includes(queryLower)) return true;
+                    }
+                    return false;
+                });
+            }
+
+            // Map common keywords to relevant categories
+            const lawnKeywords = ['lawn', 'lawncare', 'lawn care', 'mow', 'mowing', 'yard', 'garden', 'landscaping'];
+            if (lawnKeywords.some(keyword => queryLower.includes(keyword))) {
+                if (pro.skills && pro.skills.includes('LANDSCAPING' as any)) {
+                    matchesSkill = true;
+                }
+            }
+
+            const cleanKeywords = ['clean', 'cleaning', 'cleans', 'maid', 'housekeeper', 'janitor'];
+            if (cleanKeywords.some(keyword => queryLower.includes(keyword))) {
+                if (pro.skills && pro.skills.includes('CLEANING' as any)) {
+                    matchesSkill = true;
+                }
+            }
+
+            const handKeywords = ['handyman', 'fix', 'hardware', 'repair', 'broken', 'mount'];
+            if (handKeywords.some(keyword => queryLower.includes(keyword))) {
+                if (pro.skills && pro.skills.includes('HANDYMAN' as any)) {
+                    matchesSkill = true;
+                }
+            }
+
+            matchesSearch = !!(matchesName || matchesCompany || matchesEmail || matchesDesc || matchesSkill);
+        }
+
         const matchesCategory = categoryFilter === 'ALL' || (pro.skills && pro.skills.includes(categoryFilter as any));
         return matchesSearch && matchesCategory;
     });
 
     const handleToggleCrew = async (proId: string) => {
-        if (!currentUser) return;
+        if (!currentUser) {
+            setAuthModalText("Add this professional to your personalized Crew List to easily manage communication, schedule priority service, and get fast-tracked bookings.");
+            setAuthModalOpen(true);
+            return;
+        }
         
         let newCrewList = [...(currentUser.crewList || [])];
         if (newCrewList.includes(proId)) {
@@ -58,7 +141,7 @@ export const ProDirectory = () => {
         });
     };
 
-    return (
+    const mainContent = (
         <div className="space-y-8 animate-in fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -73,7 +156,14 @@ export const ProDirectory = () => {
                         All Providers
                     </button>
                     <button 
-                        onClick={() => setViewMode('CREW')}
+                        onClick={() => {
+                            if (!currentUser) {
+                                setAuthModalText("Your personalized Crew List allows you to save, organize, and quickly rehire local home service professionals who have exceeded your expectations.");
+                                setAuthModalOpen(true);
+                                return;
+                            }
+                            setViewMode('CREW');
+                        }}
                         className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${viewMode === 'CREW' ? 'bg-white text-navy-900 shadow' : 'text-slate-500 hover:text-navy-700'}`}
                     >
                         My Crew
@@ -173,6 +263,31 @@ export const ProDirectory = () => {
                                     </div>
                                 )}
                                 
+                                {pro.socialLinks && Object.values(pro.socialLinks).some(link => link) && (
+                                    <div className="mb-4 flex flex-wrap gap-2">
+                                        {pro.socialLinks.youtube && (
+                                            <a href={pro.socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FF0000]/10 text-[#FF0000] hover:bg-[#FF0000]/20 rounded-lg text-xs font-bold transition-colors">
+                                                <Youtube className="w-4 h-4" /> YouTube
+                                            </a>
+                                        )}
+                                        {pro.socialLinks.tiktok && (
+                                            <a href={pro.socialLinks.tiktok} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black/5 text-black hover:bg-black/10 rounded-lg text-xs font-bold transition-colors">
+                                                <LinkIcon className="w-4 h-4" /> TikTok
+                                            </a>
+                                        )}
+                                        {pro.socialLinks.instagram && (
+                                            <a href={pro.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#E1306C]/10 text-[#E1306C] hover:bg-[#E1306C]/20 rounded-lg text-xs font-bold transition-colors">
+                                                <Instagram className="w-4 h-4" /> Instagram
+                                            </a>
+                                        )}
+                                        {pro.socialLinks.threads && (
+                                            <a href={pro.socialLinks.threads} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black/5 text-black hover:bg-black/10 rounded-lg text-xs font-bold transition-colors">
+                                                <MessageCircle className="w-4 h-4" /> Threads
+                                            </a>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="mb-4">
                                     <p className="text-sm text-slate-600 mb-2 font-medium">Categories & Rates:</p>
                                     <div className="flex flex-wrap gap-2">
@@ -219,10 +334,24 @@ export const ProDirectory = () => {
                                     </div>
                                 )}
 
-                                <div className="pt-4 border-t border-slate-100 flex justify-end items-center">
+                                <div className="pt-4 border-t border-slate-100 flex justify-between items-center gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            if (!currentUser) {
+                                                setAuthModalText("Book and invite this verified professional directly! Sign up now to draft a fast quote request, set your budget, and start chatting.");
+                                                setAuthModalOpen(true);
+                                                return;
+                                            }
+                                            const category = pro.skills && pro.skills.length > 0 ? pro.skills[0] : 'GENERAL_LABOR';
+                                            navigate(`/dashboard?rebook=${pro.id}&category=${encodeURIComponent(category)}`);
+                                        }}
+                                        className="flex-1 px-3 py-2 bg-navy-900 text-white rounded-lg font-bold text-sm hover:bg-navy-800 transition-colors flex items-center justify-center whitespace-nowrap"
+                                    >
+                                        <Send className="w-4 h-4 mr-1.5" /> Request Quote
+                                    </button>
                                     <button 
                                         onClick={() => handleToggleCrew(pro.id)}
-                                        className={`px-4 py-2 rounded-lg font-bold transition-colors flex items-center text-sm ${inCrew ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                        className={`px-3 py-2 rounded-lg font-bold transition-colors flex items-center text-sm whitespace-nowrap ${inCrew ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                                     >
                                         {inCrew ? (
                                             <><CheckCircle2 className="w-4 h-4 mr-1" /> Crew List</>
@@ -262,6 +391,85 @@ export const ProDirectory = () => {
                     />
                 </div>
             )}
+
+            {/* Auth Gating Modal */}
+            {authModalOpen && (
+                <div 
+                    className="fixed inset-0 z-[100] bg-navy-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setAuthModalOpen(false)}
+                >
+                    <div 
+                        className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-slate-100 relative animate-in zoom-in group duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button 
+                            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
+                            onClick={() => setAuthModalOpen(false)}
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+
+                        <div className="text-center">
+                            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <Users className="w-8 h-8 animate-pulse" />
+                            </div>
+
+                            <h3 className="text-2xl font-extrabold text-navy-900 mb-3 tracking-tight">
+                                Registration Required
+                            </h3>
+                            
+                            <p className="text-slate-600 leading-relaxed text-sm mb-8">
+                                {authModalText}
+                            </p>
+
+                            <div className="flex flex-col gap-3">
+                                <Link 
+                                    to="/signup" 
+                                    className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 text-center flex items-center justify-center gap-2"
+                                >
+                                    <UserPlus className="w-4 h-4" /> Create Free Account
+                                </Link>
+                                <Link 
+                                    to="/login" 
+                                    className="w-full py-3.5 border-2 border-navy-900 text-navy-900 hover:bg-slate-50 font-bold rounded-xl transition-all text-center flex items-center justify-center gap-2"
+                                >
+                                    <LogIn className="w-4 h-4" /> Log In
+                                </Link>
+                                <button 
+                                    onClick={() => setAuthModalOpen(false)}
+                                    className="w-full py-2.5 text-slate-400 hover:text-slate-600 text-sm font-semibold transition-colors mt-2"
+                                >
+                                    Maybe Later
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
+
+    if (!currentUser) {
+        return (
+            <div className="min-h-screen flex flex-col bg-slate-50 font-sans selection:bg-blue-200">
+                <PublicNav />
+                <main className="flex-1 pt-32 md:pt-40 pb-20">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="text-center mb-12 max-w-3xl mx-auto">
+                            <h1 className="text-4xl font-extrabold text-navy-900 mb-4 tracking-tight">
+                                Registered Trade Professionals
+                            </h1>
+                            <p className="text-lg text-slate-600 leading-relaxed font-medium">
+                                Browse certified specialists in lawn maintenance, cleaning, assembly, and general tasks near you. All pros are background checked.
+                            </p>
+                        </div>
+                        {mainContent}
+                    </div>
+                </main>
+                <PublicFooter />
+            </div>
+        );
+    }
+
+    return mainContent;
 };

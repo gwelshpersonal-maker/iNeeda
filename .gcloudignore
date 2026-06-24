@@ -1,0 +1,20 @@
+# gcloud ignore configuration
+.gcloudignore
+.git
+.gitmodules
+.gitignore
+node_modules/
+dist/
+.vite/
+.gemini/
+applet/
+server.cjs
+server.cjs.map
+*.log
+.env
+.env.local
+.env.development
+.env.production
+README.md
+PRODUCTION_READINESS.md
+supabase_migrations/

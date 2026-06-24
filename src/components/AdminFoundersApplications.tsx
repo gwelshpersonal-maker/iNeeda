@@ -80,10 +80,17 @@ export const AdminFoundersApplications = () => {
                                     </div>
                                     <div>
                                         <h3 className="text-xl font-bold text-navy-900">{app.fullName}</h3>
-                                        <div className="flex items-center gap-3 mt-1 text-sm font-medium text-slate-500">
-                                            <span className="bg-white border border-slate-200 px-2.5 py-1 rounded-md text-navy-700">
-                                                {app.category}
-                                            </span>
+                                        <div className="flex flex-wrap items-center gap-3 mt-2 text-sm font-medium text-slate-500">
+                                            {app.category && (
+                                                <span className="bg-white border border-slate-200 px-2.5 py-1 rounded-md text-navy-700">
+                                                    {app.category}
+                                                </span>
+                                            )}
+                                            {app.requestedCategory && (
+                                                <span className="bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md text-amber-800 font-bold">
+                                                    Requested: {app.requestedCategory}
+                                                </span>
+                                            )}
                                             {app.submittedAt && (
                                                 <span className="flex items-center gap-1">
                                                     <Calendar className="w-3.5 h-3.5" /> 
@@ -117,7 +124,7 @@ export const AdminFoundersApplications = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div>
                                     <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Contact Info</h4>
-                                    <div className="space-y-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                                    <div className="space-y-4 bg-white p-4 rounded-xl border border-slate-100 shadow-sm mb-6">
                                         <div className="flex items-center gap-3 text-slate-700">
                                             <Mail className="w-5 h-5 text-indigo-400" />
                                             <a href={`mailto:${app.email}`} className="font-medium hover:text-indigo-600 transition-colors">{app.email}</a>
@@ -132,6 +139,43 @@ export const AdminFoundersApplications = () => {
                                                 <span className="font-medium">{app.businessName}</span>
                                             </div>
                                         )}
+                                    </div>
+
+                                    <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Requested Categories</h4>
+                                    <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                                        {(() => {
+                                            const selectedCats = Array.isArray(app.categories) && app.categories.length > 0
+                                                ? app.categories
+                                                : (app.category ? app.category.split(',').map((c: string) => c.trim()).filter(Boolean) : []);
+                                            
+                                            return (
+                                                <>
+                                                    {selectedCats.length > 0 && (
+                                                        <div className="space-y-2">
+                                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Selected Launch Categories</p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {selectedCats.map((cat: string, idx: number) => (
+                                                                    <span key={idx} className="bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl text-indigo-700 font-bold text-xs shadow-sm">
+                                                                        {cat}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {app.requestedCategory && (
+                                                        <div className="space-y-2">
+                                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Custom Category Request</p>
+                                                            <span className="inline-block bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-amber-800 font-bold text-xs shadow-sm">
+                                                                {app.requestedCategory}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {selectedCats.length === 0 && !app.requestedCategory && (
+                                                        <p className="text-sm text-slate-400 italic">No categories selected</p>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                                 

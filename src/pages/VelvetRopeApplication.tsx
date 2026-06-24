@@ -1,23 +1,29 @@
 import React, { useState } from 'react';
 import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ShieldCheck, ArrowRight, Loader2, CheckCircle2, Lock } from 'lucide-react';
-
-const CATEGORIES = [
-  'Handyman',
-  'Landscaping',
-  'Cleaning',
-  'Furniture Assembly',
-  'General Labor'
-];
+import { ShieldCheck, ArrowRight, Loader2, CheckCircle2, Lock, Check, Sparkles } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
 
 export const VelvetRopeApplication = () => {
+    const { serviceCategories } = useData();
+    const providerCategories = serviceCategories && serviceCategories.length > 0
+        ? serviceCategories.filter(cat => cat.isActive).map(cat => cat.name)
+        : [
+            'Handyman',
+            'Landscaping',
+            'Cleaning',
+            'Furniture Assembly',
+            'General Labor'
+          ];
+
     const [formData, setFormData] = useState({
         fullName: '',
         businessName: '',
         phone: '',
         email: '',
+        categories: [] as string[],
         category: '',
+        requestedCategory: '',
         biddingAnswer: '',
         escrowAnswer: ''
     });
@@ -31,8 +37,10 @@ export const VelvetRopeApplication = () => {
         setIsSubmitting(true);
         setError('');
 
-        if (!formData.fullName || !formData.phone || !formData.email || !formData.category || !formData.biddingAnswer || !formData.escrowAnswer) {
-            setError('Please complete all required fields.');
+        const finalCategoriesText = formData.categories.join(', ') || formData.category;
+
+        if (!formData.fullName || !formData.phone || !formData.email || (!finalCategoriesText && !formData.requestedCategory) || !formData.biddingAnswer || !formData.escrowAnswer) {
+            setError('Please complete all required fields. Select at least one category or request a new one.');
             setIsSubmitting(false);
             return;
         }
@@ -40,6 +48,7 @@ export const VelvetRopeApplication = () => {
         try {
             await addDoc(collection(db, 'founders_club_applications'), {
                 ...formData,
+                category: finalCategoriesText,
                 submittedAt: serverTimestamp(),
                 status: 'NEW'
             });
@@ -61,7 +70,7 @@ export const VelvetRopeApplication = () => {
                     </div>
                     <h2 className="text-2xl font-bold text-white mb-4">Application Received.</h2>
                     <p className="text-slate-300 leading-relaxed">
-                        If your trade category still has an open slot, the founder will text you within 24 hours to conduct a quick 5-minute introductory screening call. Keep an eye on your phone.
+                        The founder will text you within 24 hours to conduct a quick 5-minute introductory screening call to verify your business and get you onboarded. Keep an eye on your phone.
                     </p>
                 </div>
             </div>
@@ -72,15 +81,15 @@ export const VelvetRopeApplication = () => {
         <div className="min-h-screen bg-navy-950 text-slate-200 py-12 px-4 sm:px-6">
             <div className="max-w-2xl mx-auto">
                 <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center p-3 bg-indigo-500/20 text-indigo-400 rounded-2xl mb-6">
-                        <Lock className="w-6 h-6 mr-2" />
-                        <span className="font-bold tracking-widest uppercase text-sm">Strictly Limited</span>
+                    <div className="inline-flex items-center justify-center p-3 bg-indigo-500/10 text-indigo-400 rounded-2xl mb-6 border border-indigo-500/20">
+                        <Sparkles className="w-6 h-6 mr-2 text-indigo-400 animate-pulse" />
+                        <span className="font-bold tracking-widest uppercase text-sm">Founders Club Application</span>
                     </div>
                     <h1 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">
                         Apply for the iNeeda Founders Club (717 Area)
                     </h1>
                     <p className="text-lg text-slate-300 leading-relaxed max-w-xl mx-auto">
-                        We are selecting exactly <strong className="text-white">10 independent pros per trade</strong> in the greater Harrisburg area for our launch. Founders Club members receive a <strong className="text-white">lifetime waiver of all monthly subscription fees</strong>—you only pay standard platform transaction splits when you actually win a job and get paid. Once the 10 slots in your category are filled, the door closes.
+                        The first <strong className="text-white">5 independent pros per trade</strong> in the greater Harrisburg area who register and verify will join our elite <strong className="text-white">Founders Club</strong>. Founders receive a <strong className="text-white">lifetime waiver of the $20 monthly subscription fee</strong>—paying only the standard platform fees when you win a job. Category registration remains open for all, but this subscription waiver is strictly reserved for the first 5!
                     </p>
                 </div>
 
@@ -148,26 +157,55 @@ export const VelvetRopeApplication = () => {
                         </div>
 
                         <div className="pt-6 border-t border-navy-800">
-                            <label className="block text-lg font-bold text-white mb-1">Select Your Launch Category</label>
-                            <p className="text-sm text-slate-400 mb-4">Choose your primary trade. We are strictly limiting to 10 per category.</p>
-                            <div className="space-y-3">
-                                {CATEGORIES.map(cat => (
-                                    <label key={cat} className={`flex items-center p-4 rounded-xl border cursor-pointer transition-colors ${formData.category === cat ? 'bg-indigo-600/20 border-indigo-500' : 'bg-navy-950 border-navy-700 hover:border-slate-500'}`}>
-                                        <input
-                                            type="radio"
-                                            name="category"
-                                            value={cat}
-                                            checked={formData.category === cat}
-                                            onChange={(e) => setFormData({...formData, category: e.target.value})}
-                                            className="sr-only"
-                                            required
-                                        />
-                                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-4 flex-shrink-0 ${formData.category === cat ? 'border-indigo-400' : 'border-slate-500'}`}>
-                                            {formData.category === cat && <div className="w-2.5 h-2.5 bg-indigo-400 rounded-full" />}
-                                        </div>
-                                        <span className={`font-medium ${formData.category === cat ? 'text-white' : 'text-slate-300'}`}>{cat}</span>
-                                    </label>
-                                ))}
+                            <label className="block text-lg font-bold text-white mb-1">Select Your Launch Categories</label>
+                            <p className="text-sm text-slate-400 mb-4">Choose one or more trades you practice. The first 5 active pros per trade secure lifetime waived fees and Founders Club status!</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {providerCategories.map(cat => {
+                                    const isSelected = formData.categories.includes(cat);
+                                    return (
+                                        <label key={cat} className={`flex items-center p-4 rounded-xl border cursor-pointer transition-colors ${isSelected ? 'bg-indigo-600/20 border-indigo-500' : 'bg-navy-950 border-navy-700 hover:border-slate-500'}`}>
+                                            <input
+                                                type="checkbox"
+                                                name="category"
+                                                value={cat}
+                                                checked={isSelected}
+                                                onChange={() => {
+                                                    setFormData(prev => {
+                                                        const alreadySelected = prev.categories.includes(cat);
+                                                        const updated = alreadySelected
+                                                            ? prev.categories.filter(c => c !== cat)
+                                                            : [...prev.categories, cat];
+                                                        return {
+                                                            ...prev,
+                                                            categories: updated,
+                                                            category: '', // clear single category if any
+                                                            requestedCategory: '' // clear manually requested category since they clicked a preset
+                                                        };
+                                                    });
+                                                }}
+                                                className="sr-only"
+                                            />
+                                            <div className={`w-5 h-5 rounded border flex items-center justify-center mr-4 flex-shrink-0 transition-all ${isSelected ? 'border-indigo-400 bg-indigo-600 text-white' : 'border-slate-500 bg-transparent'}`}>
+                                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[3px]" />}
+                                            </div>
+                                            <span className={`font-medium ${isSelected ? 'text-white' : 'text-slate-300'}`}>{cat}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="mt-6 p-5 bg-navy-950 rounded-xl border border-navy-800">
+                                <label className="block text-sm font-bold text-white mb-2">Request to Add a Job Category</label>
+                                <p className="text-sm text-slate-400 mb-4 leading-relaxed">
+                                    Don't see your trade above? Request it here. If there is enough response, we will add it immediately for launch. If not, we will be continuing to add new categories in the future and we will contact you if we add it.
+                                </p>
+                                <input
+                                    type="text"
+                                    value={formData.requestedCategory}
+                                    onChange={(e) => setFormData({...formData, requestedCategory: e.target.value, categories: [], category: ''})}
+                                    className="w-full bg-navy-900 border border-navy-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors placeholder:text-slate-500"
+                                    placeholder="Enter your specific trade (e.g., Plumbing, Electrician)"
+                                />
                             </div>
                         </div>
 

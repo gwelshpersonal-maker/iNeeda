@@ -156,26 +156,22 @@ export const PriceGuide = () => {
   };
 
   const handleSeedData = () => {
-      if(confirm("This will inject mock historical job data into the system to calibrate pricing models. Continue?")) {
-          setIsSeeding(true);
-          // Simulate slight delay for effect
-          setTimeout(() => {
-              seedMarketData();
-              setIsSeeding(false);
-              setSeedSuccess(true);
-              setTimeout(() => setSeedSuccess(false), 3000);
-          }, 1500);
-      }
+      setIsSeeding(true);
+      // Simulate slight delay for effect
+      setTimeout(() => {
+          seedMarketData();
+          setIsSeeding(false);
+          setSeedSuccess(true);
+          setTimeout(() => setSeedSuccess(false), 3000);
+      }, 1500);
   };
 
   const handleSeedPricing = () => {
-      if(confirm("This will inject specific pricing data points to populate the Fair Price Guide. Continue?")) {
-          setIsPricingSeeding(true);
-          setTimeout(() => {
-              seedPricingData();
-              setIsPricingSeeding(false);
-          }, 1500);
-      }
+      setIsPricingSeeding(true);
+      setTimeout(() => {
+          seedPricingData();
+          setIsPricingSeeding(false);
+      }, 1500);
   };
 
   // Calculate statistics from existing shifts

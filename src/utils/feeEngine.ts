@@ -9,6 +9,7 @@ export const TAXABLE_CATEGORIES: Record<ServiceCategory, boolean> = {
   GUTTER_CLEANING: true,     // Building maintenance
   PEST_CONTROL: true,        // Disinfecting/pest control
   AUTO: true,                // Motor vehicle repair
+  AUTO_DETAILING: true,      // Motor vehicle cleaning/detailing
   COMPUTER: true,            // Tangible property repair
   FURNITURE_ASSEMBLY: true,  // Assembling tangible property
   POWER_WASHING: true,       // Building maintenance
@@ -53,14 +54,14 @@ export const calculateJobSplit = (
   category: ServiceCategory,
   hasOwnInsurance: boolean = false,
   isEmergency: boolean = false,
-  platformFeePercent: number = 0.15,
+  rateCategory: RateCategory = 'STANDARD',
   insuranceFeeValue: number | null = null,
   siteAddress: string = '',
   paymentMethod?: 'STRIPE' | 'ZELLE'
 ): FeeBreakdown => {
   
   // Custom or Base Platform Commission 
-  let platformFee = jobAmount * platformFeePercent; 
+  let { platformFee } = calculatePlatformFee(jobAmount, rateCategory);
   
   if (isEmergency) {
       const emergencyFeeTotal = 25;
@@ -126,5 +127,31 @@ export const calculateJobSplit = (
     localSalesTaxAmount: Number(localSalesTaxAmount.toFixed(2)),
     totalSalesTaxAmount: Number(totalSalesTaxAmount.toFixed(2)),
     clientTotalAmount: Number(clientTotalAmount.toFixed(2))
+  };
+};
+
+import { RateCategory } from '../types';
+
+export const calculatePlatformFee = (grossAmount: number, rateCategory: RateCategory = 'STANDARD') => {
+  if (grossAmount < 0) {
+    throw new Error('Gross amount cannot be negative');
+  }
+
+  let platformFee = 0;
+
+  if (rateCategory === 'RECURRING') {
+    platformFee = grossAmount * 0.08;
+  } else if (rateCategory === 'STANDARD') {
+    platformFee = grossAmount * 0.15;
+  } else if (rateCategory === 'SPECIALIZED') {
+    platformFee = grossAmount * 0.15;
+    if (platformFee > 60) {
+      platformFee = 60;
+    }
+  }
+
+  return {
+    platformFee: Number(platformFee.toFixed(2)),
+    vendorNet: Number((grossAmount - platformFee).toFixed(2))
   };
 };

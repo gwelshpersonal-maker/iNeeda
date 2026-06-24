@@ -314,6 +314,7 @@ export const Staff = () => {
                     <th className="px-8 py-5 font-bold text-navy-900 uppercase tracking-wider text-xs">Name</th>
                     <th className="px-8 py-5 font-bold text-navy-900 uppercase tracking-wider text-xs">Role</th>
                     <th className="px-8 py-5 font-bold text-navy-900 uppercase tracking-wider text-xs">Insurance</th>
+                    <th className="px-8 py-5 font-bold text-navy-900 uppercase tracking-wider text-xs">Subscription</th>
                     <th className="px-8 py-5 font-bold text-navy-900 uppercase tracking-wider text-xs">Approval</th>
                     <th className="px-8 py-5 font-bold text-navy-900 uppercase tracking-wider text-xs text-right">Actions</th>
                   </tr>
@@ -369,8 +370,69 @@ export const Staff = () => {
                          )}
                       </td>
                       <td className="px-8 py-5">
+                          {user.role === Role.PROVIDER ? (
+                              <div className="flex flex-col gap-1">
+                                  {user.isFoundersClub ? (
+                                      <div>
+                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+                                              <Rocket className="w-3 h-3 text-amber-500 shrink-0" />
+                                              Founders Club
+                                          </span>
+                                      </div>
+                                  ) : (
+                                      <>
+                                          {(() => {
+                                              const hasActiveSub = user.subscriptionStatus === 'active';
+                                              let statusLabel = 'No Subscription';
+                                              let badgeStyle = 'bg-slate-100 border-slate-200 text-slate-700';
+                                              
+                                              if (user.subscriptionStatus === 'active') {
+                                                  statusLabel = 'Active (Paid)';
+                                                  badgeStyle = 'bg-emerald-50 border-emerald-100 text-emerald-700';
+                                              } else if (user.subscriptionStatus === 'trialing') {
+                                                  statusLabel = 'Active (Trial)';
+                                                  badgeStyle = 'bg-blue-50 border-blue-100 text-blue-700';
+                                              } else if (user.subscriptionStatus === 'past_due') {
+                                                  statusLabel = 'Past Due';
+                                                  badgeStyle = 'bg-amber-50 border-amber-100 text-amber-700';
+                                              } else if (user.subscriptionStatus === 'unpaid') {
+                                                  statusLabel = 'Unpaid';
+                                                  badgeStyle = 'bg-red-50 border-red-100 text-red-700';
+                                              } else if (user.subscriptionStatus === 'canceled') {
+                                                  statusLabel = 'Canceled';
+                                                  badgeStyle = 'bg-slate-200 border-slate-300 text-slate-700';
+                                              }
+
+                                              const dVal = user.subscriptionPeriodEnd;
+                                              const formattedDate = dVal ? (
+                                                  dVal instanceof Date ? format(dVal, 'MM/dd/yyyy') : new Date(dVal as any).toLocaleDateString()
+                                              ) : '';
+
+                                              return (
+                                                  <div className="space-y-1">
+                                                      <div>
+                                                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${badgeStyle}`}>
+                                                              {statusLabel}
+                                                          </span>
+                                                      </div>
+                                                      {formattedDate && (
+                                                          <div className="text-[10px] text-slate-400 font-medium">
+                                                              Ends: {formattedDate}
+                                                          </div>
+                                                      )}
+                                                  </div>
+                                              );
+                                          })()}
+                                      </>
+                                  )}
+                              </div>
+                          ) : (
+                              <span className="text-slate-300">-</span>
+                          )}
+                      </td>
+                      <td className="px-8 py-5">
                          <div className="flex flex-col gap-2">
-                            {user.verificationStatus === 'PENDING' ? (
+                            {(user.verificationStatus === 'PENDING' || !user.isActive) ? (
                                 <div className="flex items-center gap-3">
                                     <span className="text-xs font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100">ACCOUNT PENDING</span>
                                     <button 
@@ -959,6 +1021,63 @@ export const Staff = () => {
                             />
                             <span className="ml-2 text-xs font-bold text-navy-900">Enable Founders Club Status</span>
                         </label>
+                    </div>
+
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-4">
+                        <div className="flex items-center gap-2 mb-3">
+                            <CheckCircle2 className="w-4 h-4 text-navy-600" />
+                            <label className="block text-sm font-bold text-navy-900">Pro Membership Subscription</label>
+                        </div>
+                        
+                        {formData.isFoundersClub ? (
+                            <p className="text-xs text-amber-700 bg-amber-50/50 p-3 rounded-lg border border-amber-100 font-medium leading-relaxed">
+                                This user is in the Founders Club. Their subscription requirements are permanently waived, granting automatic access to claim jobs.
+                            </p>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</label>
+                                        <select 
+                                            className="w-full px-3 py-2 bg-white text-navy-900 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-500 font-bold text-xs"
+                                            value={formData.subscriptionStatus || 'none'}
+                                            onChange={e => setFormData({...formData, subscriptionStatus: e.target.value as any})}
+                                        >
+                                            <option value="none">No Subscription</option>
+                                            <option value="active">Active (Paid)</option>
+                                            <option value="trialing">Trialing</option>
+                                            <option value="past_due">Past Due</option>
+                                            <option value="unpaid">Unpaid</option>
+                                            <option value="canceled">Canceled</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Period Ending</label>
+                                        <input 
+                                            type="date"
+                                            className="w-full px-3 py-2 bg-white text-navy-900 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-navy-100 focus:border-navy-500 font-bold text-xs"
+                                            value={formData.subscriptionPeriodEnd ? (() => {
+                                                const d = formData.subscriptionPeriodEnd instanceof Date ? formData.subscriptionPeriodEnd : new Date(formData.subscriptionPeriodEnd as any);
+                                                if (!isNaN(d.getTime())) {
+                                                    return d.toISOString().split('T')[0];
+                                                }
+                                                return '';
+                                            })() : ''}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setFormData({
+                                                    ...formData,
+                                                    subscriptionPeriodEnd: val ? new Date(val + 'T00:00:00') : undefined
+                                                });
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-medium">
+                                    Note: An <strong className="text-navy-900 font-bold">"Active"</strong> status or being a <strong className="text-gold-600 font-bold">"Founders Club"</strong> member is legally required for providers to see, apply, and bid on jobs under the marketplace rules.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-4">

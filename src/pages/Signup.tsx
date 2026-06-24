@@ -227,7 +227,11 @@ export const Signup = () => {
                 }
             }
 
-            navigate('/dashboard');
+            if (searchParams.has('category') && searchParams.has('desc')) {
+                navigate(`/dashboard?draft=true&category=${encodeURIComponent(searchParams.get('category') || '')}&desc=${encodeURIComponent(searchParams.get('desc') || '')}`);
+            } else {
+                navigate('/dashboard');
+            }
         } catch (error: any) {
             console.error("Google Signup error:", error);
             let message = "An error occurred during Google signup. Please try again.";
@@ -365,7 +369,11 @@ export const Signup = () => {
 
             // Login immediately regardless of status, Dashboard will handle restrictions
             // Firebase Auth already signs the user in after createUserWithEmailAndPassword
-            navigate('/dashboard');
+            if (searchParams.has('category') && searchParams.has('desc')) {
+                navigate(`/dashboard?draft=true&category=${encodeURIComponent(searchParams.get('category') || '')}&desc=${encodeURIComponent(searchParams.get('desc') || '')}`);
+            } else {
+                navigate('/dashboard');
+            }
         } catch (error: any) {
             console.error("Signup error:", error);
             if (error.code === 'auth/email-already-in-use' || (error.message && error.message.includes('email-already-in-use'))) {
@@ -593,7 +601,7 @@ export const Signup = () => {
                                                     onChange={() => setFormData({...formData, insuranceType: 'DAILY_SHIELD'})}
                                                 />
                                                 <div>
-                                                    <span className="block font-bold text-navy-900 text-sm">Join "iNeeda Daily Shield"</span>
+                                                    <span className="block font-bold text-navy-900 text-sm">Join &quot;<span className="text-blue-600">iN</span>eeda Daily Shield&quot;</span>
                                                     <span className="block text-xs text-slate-500 mt-1">
                                                         Authorized to claim jobs immediately. 
                                                         <button 
@@ -800,7 +808,7 @@ export const Signup = () => {
                         
                         <div className="p-6 overflow-y-auto custom-scrollbar text-sm text-slate-600 space-y-4">
                             <p className="font-bold text-red-600 uppercase tracking-wider text-xs">IMPORTANT: READ CAREFULLY BEFORE CONTINUING</p>
-                            <p className="font-bold text-navy-900">BY CREATING AN ACCOUNT AND USING THE "iNeeda" APP, YOU EXPRESSLY AGREE TO THE FOLLOWING:</p>
+                            <p className="font-bold text-navy-900">BY CREATING AN ACCOUNT AND USING THE &quot;<span className="text-blue-600">iN</span>eeda&quot; APP, YOU EXPRESSLY AGREE TO THE FOLLOWING:</p>
                             
                             <div className="space-y-4 mt-4">
                                 <div>

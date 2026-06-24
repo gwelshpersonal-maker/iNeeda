@@ -61,7 +61,12 @@ export const Login = () => {
                 }
             }
             
-            navigate('/dashboard');
+            const pendingSessionId = localStorage.getItem('pending_stripe_session_id');
+            if (pendingSessionId) {
+                navigate(`/profile?session_id=${pendingSessionId}&tab=financials`);
+            } else {
+                navigate('/dashboard');
+            }
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred during Google login.');
             setIsLoading(false);
@@ -116,7 +121,12 @@ export const Login = () => {
                 }
             }
             
-            navigate('/dashboard');
+            const pendingSessionId = localStorage.getItem('pending_stripe_session_id');
+            if (pendingSessionId) {
+                navigate(`/profile?session_id=${pendingSessionId}&tab=financials`);
+            } else {
+                navigate('/dashboard');
+            }
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred during login.');
             setIsLoading(false);

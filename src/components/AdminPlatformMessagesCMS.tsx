@@ -44,11 +44,9 @@ export const AdminPlatformMessagesCMS: React.FC = () => {
     };
 
     const handleDelete = (index: number) => {
-        if (confirm("Are you sure you want to delete this message?")) {
-            const newMessages = messages.filter((_, i) => i !== index);
-            setMessages(newMessages);
-            updatePlatformMessages(newMessages);
-        }
+        const newMessages = messages.filter((_, i) => i !== index);
+        setMessages(newMessages);
+        updatePlatformMessages(newMessages);
     };
 
     const startNew = () => {

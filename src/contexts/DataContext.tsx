@@ -193,6 +193,8 @@ interface DataContextType {
   addCategoryRequest: (request: CategoryRequest) => Promise<void>;
   updateCategoryRequest: (requestId: string, status: 'PENDING' | 'APPROVED' | 'REJECTED') => Promise<void>;
   isLoading: boolean;
+  prelaunchMode: boolean;
+  updatePrelaunchMode: (active: boolean) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -204,6 +206,7 @@ const DEFAULT_PLATFORM_CONFIG: PlatformConfig = ALL_SERVICE_CATEGORIES.reduce((a
     const insuranceFee = INSURANCE_FEES[riskLevel] || 3.00; 
 
     acc[cat] = { 
+        rateCategory: riskLevel === RISK_LEVELS.LOW ? 'RECURRING' : riskLevel === RISK_LEVELS.HIGH ? 'SPECIALIZED' : 'STANDARD',
         platformFeePercent: 15, 
         insuranceRule: { type: 'FLAT', value: insuranceFee },
         requiresInsurance: false 
@@ -231,6 +234,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [legalDocuments, setLegalDocuments] = useState<LegalDocument[]>([]);
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [categoryRequests, setCategoryRequests] = useState<CategoryRequest[]>([]);
+  const [prelaunchMode, setPrelaunchMode] = useState<boolean>(true);
 
   // Local state for toggles (could be moved to DB config table)
   const [isClientReferralEnabled, setIsMemberReferralEnabled] = useState<boolean>(false);
@@ -312,7 +316,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...u,
       createdAt: toDate(u.createdAt),
       coiExpiry: u.coiExpiry ? toDate(u.coiExpiry) : undefined,
-      subscriptionPeriodEnd: u.subscriptionPeriodEnd ? toDate(u.subscriptionPeriodEnd) : undefined
+      subscriptionPeriodEnd: u.subscriptionPeriodEnd ? toDate(u.subscriptionPeriodEnd) : undefined,
+      aiMarketingPeriodEnd: u.aiMarketingPeriodEnd ? toDate(u.aiMarketingPeriodEnd) : undefined
     }));
 
     // 2. Sites (Private)
@@ -435,18 +440,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         if (needsUpdate) {
-          try {
-            await setDoc(doc(db, 'platform_settings', 'globals'), { serviceCategories: updatedCats }, { merge: true });
-          } catch (e) {
-            console.error('Failed to update categories', e);
-          }
           setServiceCategories(updatedCats);
         } else {
           setServiceCategories(data.serviceCategories);
         }
       }
-      if (data.platformConfig) setPlatformConfig(data.platformConfig);
+      if (data.platformConfig) {
+        setPlatformConfig(data.platformConfig);
+      }
       if (data.platformMessages) setPlatformMessages(data.platformMessages);
+      if (data.prelaunchMode !== undefined) {
+        setPrelaunchMode(data.prelaunchMode);
+      }
     } else {
       // Only if log in specifically requests default init. But we don't need to do it here over-aggressively.
     }
@@ -492,7 +497,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isEmergency = shift.type === 'URGENT';
           
           const rule = platformConfigRef.current?.[shift.category];
-          const breakdown = calculateJobSplit(shift.price || 0, shift.category, hasOwnInsurance, isEmergency, rule?.platformFeePercent ? rule.platformFeePercent / 100 : 0.15, rule?.insuranceRule?.value || null);
+          const breakdown = calculateJobSplit(shift.price || 0, shift.category, hasOwnInsurance, isEmergency, rule?.rateCategory || 'STANDARD', rule?.insuranceRule?.value || null);
           
           const payoutAmountCents = Math.round(breakdown.providerNet * 100);
           
@@ -637,6 +642,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateShift = async (shift: Shift) => {
     try {
+      if (shift.userId && shift.groupId && shift.status !== ShiftStatus.CANCELLED) {
+          const alreadyClaimedInGroup = shifts.some(s => 
+              s.groupId === shift.groupId && 
+              s.userId === shift.userId &&
+              s.id !== shift.id &&
+              s.status !== ShiftStatus.CANCELLED
+          );
+          if (alreadyClaimedInGroup) {
+              const assignedPro = users.find(u => u.id === shift.userId);
+              const proName = assignedPro ? assignedPro.name : "This provider";
+              throw new Error(`${proName} is already assigned/contracted to a different slot for this same job group.`);
+          }
+      }
+
       const { id, ...rest } = shift;
       const firestoreShift = {
         ...rest,
@@ -926,11 +945,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
   };
 
+  const updatePrelaunchMode = async (active: boolean) => {
+      setPrelaunchMode(active);
+      try {
+        await setDoc(doc(db, 'platform_settings', 'globals'), { prelaunchMode: active }, { merge: true });
+      } catch (error) {
+        console.error("Failed to save prelaunch mode setting", error);
+      }
+  };
+
   const addServiceCategory = async (category: ServiceCategoryDef) => {
       const newCategories = [...serviceCategories, category];
       const newConfig: PlatformConfig = {
           ...platformConfig,
           [category.id]: {
+              rateCategory: category.riskLevel === 'HIGH' ? 'SPECIALIZED' : category.riskLevel === 'MEDIUM' ? 'STANDARD' : 'RECURRING',
               platformFeePercent: 15,
               insuranceRule: { type: 'FLAT', value: category.riskLevel === 'HIGH' ? 12 : category.riskLevel === 'MEDIUM' ? 5 : 3 },
               requiresInsurance: category.riskLevel === 'HIGH'
@@ -1057,6 +1086,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Optimistic Update
       const job = shifts.find(s => s.id === gigId);
       if (!job) throw new Error("Job not found");
+
+      if (job.groupId) {
+          const alreadyClaimedInGroup = shifts.some(s => 
+              s.groupId === job.groupId && 
+              s.userId === providerId &&
+              s.id !== gigId &&
+              s.status !== ShiftStatus.CANCELLED
+          );
+          if (alreadyClaimedInGroup) {
+              throw new Error("You are already assigned to a slot for this job group. You cannot claim multiple slots of the same job.");
+          }
+      }
 
       const updatedShift: Shift = {
           ...job,
@@ -1291,7 +1332,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       serviceCategories, addServiceCategory, updateServiceCategory, deleteServiceCategory,
       legalDocuments, updateLegalDocument, faqs, addFaq, updateFaq, deleteFaq, 
       categoryRequests, addCategoryRequest, updateCategoryRequest,
-      isLoading
+      isLoading,
+      prelaunchMode, updatePrelaunchMode
     }}>
       {children}
     </DataContext.Provider>

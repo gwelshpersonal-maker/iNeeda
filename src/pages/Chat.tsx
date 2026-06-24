@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { BadgeDisplay } from '../components/BadgeDisplay';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
-import { Send, User, ArrowLeft, MessageCircle, Trash2, X, Paperclip, File, Download, Image as ImageIcon } from 'lucide-react';
+import { Send, User, ArrowLeft, MessageCircle, Trash2, X, Paperclip, File, Download, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Attachment } from '../types';
 import { useNavigate, useParams } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -16,6 +16,8 @@ export const Chat = () => {
   const [selectedGigId, setSelectedGigId] = useState<string | null>(routeGigId || null);
   const [newMessage, setNewMessage] = useState('');
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const [isSending, setIsSending] = useState(false);
+  const [isProcessingFiles, setIsProcessingFiles] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,81 +75,156 @@ export const Chat = () => {
       }
   }, [chatMessages]);
 
-  const handleSend = () => {
-      if ((!newMessage.trim() && pendingAttachments.length === 0) || !selectedGigId || !currentUser) return;
-      sendMessage(selectedGigId, currentUser.id, newMessage, pendingAttachments);
+  const handleSend = async () => {
+      if ((!newMessage.trim() && pendingAttachments.length === 0) || !selectedGigId || !currentUser || isSending || isProcessingFiles) return;
+      
+      setIsSending(true);
+      const textToSend = newMessage;
+      const attsToSend = pendingAttachments;
+      
+      // Clear inputs immediately for smooth UI transition
       setNewMessage('');
       setPendingAttachments([]);
+      
+      try {
+          await sendMessage(selectedGigId, currentUser.id, textToSend, attsToSend);
+      } catch (err: any) {
+          console.error("Failed to send message:", err);
+          alert("Failed to send message. Please check your network and try again.");
+          // Restore user input so they don't lose their typed message
+          setNewMessage(textToSend);
+          setPendingAttachments(attsToSend);
+      } finally {
+          setIsSending(false);
+      }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      if (!files) return;
+      if (!files || files.length === 0) return;
 
       if (pendingAttachments.length + files.length > 5) {
           alert("Maximum 5 attachments allowed per message.");
           return;
       }
 
+      setIsProcessingFiles(true);
+      let filesLeft = files.length;
+
+      const decrementFilesLeft = () => {
+          filesLeft--;
+          if (filesLeft === 0) {
+              setIsProcessingFiles(false);
+          }
+      };
+
       Array.from(files).forEach((file: File) => {
           const isImage = file.type.startsWith('image/');
           const reader = new FileReader();
           
           reader.onload = (event) => {
-              if (!event.target?.result) return;
+              if (!event.target?.result) {
+                  decrementFilesLeft();
+                  return;
+              }
               
               if (isImage) {
                   const img = new Image();
                   img.onload = () => {
-                      const canvas = document.createElement('canvas');
-                      let width = img.width;
-                      let height = img.height;
-                      const maxDimension = 800;
+                      try {
+                          const canvas = document.createElement('canvas');
+                          let width = img.width;
+                          let height = img.height;
+                          const maxDimension = 800;
 
-                      if (width > height) {
-                          if (width > maxDimension) {
-                              height = Math.round((height * maxDimension) / width);
-                              width = maxDimension;
+                          if (width > height) {
+                              if (width > maxDimension) {
+                                  height = Math.round((height * maxDimension) / width);
+                                  width = maxDimension;
+                              }
+                          } else {
+                              if (height > maxDimension) {
+                                  width = Math.round((width * maxDimension) / height);
+                                  height = maxDimension;
+                              }
                           }
-                      } else {
-                          if (height > maxDimension) {
-                              width = Math.round((width * maxDimension) / height);
-                              height = maxDimension;
+
+                          canvas.width = width;
+                          canvas.height = height;
+                          const ctx = canvas.getContext('2d');
+                          if (ctx) {
+                              ctx.drawImage(img, 0, 0, width, height);
+                              const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+
+                              const newAttachment: Attachment = {
+                                  id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                  name: file.name.replace(/\.[^/.]+$/, "") + ".jpg",
+                                  type: 'image/jpeg',
+                                  url: compressedBase64,
+                                  size: Math.round(compressedBase64.length * 0.75)
+                              };
+                              setPendingAttachments(prev => [...prev, newAttachment]);
                           }
+                      } catch (err) {
+                          console.error("Canvas compression error:", err);
+                          if (file.size <= 500 * 1024) {
+                              const newAttachment: Attachment = {
+                                  id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                  name: file.name,
+                                  type: file.type,
+                                  url: event.target.result as string,
+                                  size: file.size
+                              };
+                              setPendingAttachments(prev => [...prev, newAttachment]);
+                          } else {
+                              alert(`Failed to compress image ${file.name} (too large to send raw).`);
+                          }
+                      } finally {
+                          decrementFilesLeft();
                       }
-
-                      canvas.width = width;
-                      canvas.height = height;
-                      const ctx = canvas.getContext('2d');
-                      ctx?.drawImage(img, 0, 0, width, height);
-                      const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
-
-                      const newAttachment: Attachment = {
-                          id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                          name: file.name.replace(/\.[^/.]+$/, "") + ".jpg",
-                          type: 'image/jpeg',
-                          url: compressedBase64,
-                          size: Math.round(compressedBase64.length * 0.75) // Rough approx of binary size
-                      };
-                      setPendingAttachments(prev => [...prev, newAttachment]);
                   };
+                  
+                  img.onerror = () => {
+                      console.error("Failed to load image for compression");
+                      if (file.size <= 500 * 1024) {
+                          const newAttachment: Attachment = {
+                              id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                              name: file.name,
+                              type: file.type,
+                              url: event.target.result as string,
+                              size: file.size
+                          };
+                          setPendingAttachments(prev => [...prev, newAttachment]);
+                      } else {
+                          alert(`Failed to load image ${file.name} for processing.`);
+                      }
+                      decrementFilesLeft();
+                  };
+                  
                   img.src = event.target.result as string;
               } else {
                   // Non-image files
                   if (file.size > 500 * 1024) {
                       alert(`File ${file.name} is too large (max 500KB).`);
-                      return;
+                  } else {
+                      const newAttachment: Attachment = {
+                          id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                          name: file.name,
+                          type: file.type,
+                          url: event.target.result as string,
+                          size: file.size
+                      };
+                      setPendingAttachments(prev => [...prev, newAttachment]);
                   }
-                  const newAttachment: Attachment = {
-                      id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                      name: file.name,
-                      type: file.type,
-                      url: event.target.result as string,
-                      size: file.size
-                  };
-                  setPendingAttachments(prev => [...prev, newAttachment]);
+                  decrementFilesLeft();
               }
           };
+          
+          reader.onerror = () => {
+              console.error("FileReader failed");
+              decrementFilesLeft();
+          };
+          
           reader.readAsDataURL(file);
       });
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -330,6 +407,12 @@ export const Chat = () => {
                                 ))}
                             </div>
                         )}
+                        {isProcessingFiles && (
+                            <div className="flex items-center gap-2 mb-3 text-xs text-slate-500 italic">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+                                Processing image...
+                            </div>
+                        )}
                         <form 
                             onSubmit={(e) => { e.preventDefault(); handleSend(); }}
                             className="flex gap-2 items-end"
@@ -344,8 +427,9 @@ export const Chat = () => {
                             />
                             <button
                                 type="button"
+                                disabled={isSending || isProcessingFiles}
                                 onClick={() => fileInputRef.current?.click()}
-                                className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors shrink-0"
+                                className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors shrink-0 disabled:opacity-50"
                             >
                                 <Paperclip className="w-5 h-5" />
                             </button>
@@ -354,14 +438,19 @@ export const Chat = () => {
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 placeholder="Type a message..."
-                                className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                disabled={isSending}
+                                className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70"
                             />
                             <button 
                                 type="submit"
-                                disabled={!newMessage.trim() && pendingAttachments.length === 0}
-                                className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                                disabled={isSending || isProcessingFiles || (!newMessage.trim() && pendingAttachments.length === 0)}
+                                className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center min-w-[44px] min-h-[44px]"
                             >
-                                <Send className="w-5 h-5" />
+                                {isSending ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <Send className="w-5 h-5" />
+                                )}
                             </button>
                         </form>
                     </div>

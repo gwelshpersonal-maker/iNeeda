@@ -17,15 +17,6 @@ export const Landing: React.FC = () => {
   const { currentUser } = useAuth();
   const { publicProfiles, platformMessages, serviceCategories } = useData();
 
-  const messagesToDisplay = platformMessages && platformMessages.length > 0 ? platformMessages : [
-      { text: '"Super easy to use. Found help in minutes."', author: 'Sarah M.', type: 'review' },
-      { text: 'Choose Who You Trust', type: 'brand' },
-      { text: '"Saved me so much time with yard work."', author: 'David P.', type: 'review' },
-      { text: 'Get the Job Done', type: 'brand' },
-      { text: '"The handyman was professional and quick."', author: 'Mike T.', type: 'review' },
-      { text: 'Fair Prices. Local Professionals.', type: 'brand' }
-  ];
-
   const [recentJobs, setRecentJobs] = useState<Shift[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [selectedCategoryInfo, setSelectedCategoryInfo] = useState<{title: string, subtitle: string, description: string, emoji?: string, iconName?: string, colorClass?: string} | null>(null);
@@ -70,58 +61,6 @@ export const Landing: React.FC = () => {
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-gold-200">
       <PublicNav />
 
-      {/* Marquee Banner */}
-      <div className="bg-[#0b1e36] border-b border-navy-900 py-3 overflow-hidden flex items-center relative z-20">
-        <div className="flex w-full overflow-hidden whitespace-nowrap">
-          <div className="flex animate-scroll-fast gap-8 px-4 items-center min-w-max">
-            {[...Array(2)].map((_, i) => (
-              <React.Fragment key={i}>
-                {messagesToDisplay.map((msg, idx) => (
-                  <React.Fragment key={idx}>
-                    {msg.type === 'review' ? (
-                      <>
-                        <span className="text-sm md:text-base font-bold tracking-wide text-slate-300">{msg.text} - {msg.author}</span>
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20">
-                          <Star className="w-3 h-3 text-emerald-400" fill="currentColor" />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-sm md:text-base font-bold tracking-wide text-white">{msg.text}</span>
-                        <span className="text-navy-700 mx-4">|</span>
-                      </>
-                    )}
-                  </React.Fragment>
-                ))}
-              </React.Fragment>
-            ))}
-          </div>
-          <div className="flex animate-scroll-fast gap-8 px-4 items-center min-w-max" aria-hidden="true">
-            {[...Array(2)].map((_, i) => (
-              <React.Fragment key={`clone-${i}`}>
-                {messagesToDisplay.map((msg, idx) => (
-                  <React.Fragment key={`clone-msg-${idx}`}>
-                    {msg.type === 'review' ? (
-                      <>
-                        <span className="text-sm md:text-base font-bold tracking-wide text-slate-300">{msg.text} - {msg.author}</span>
-                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20">
-                          <Star className="w-3 h-3 text-emerald-400" fill="currentColor" />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-sm md:text-base font-bold tracking-wide text-white">{msg.text}</span>
-                        <span className="text-navy-700 mx-4">|</span>
-                      </>
-                    )}
-                  </React.Fragment>
-                ))}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Hero Section */}
       <section className="relative pt-24 pb-20 md:pt-32 md:pb-32 overflow-hidden">
         <div className="absolute inset-0 bg-navy-900/5 z-0"></div>
@@ -137,7 +76,7 @@ export const Landing: React.FC = () => {
               Need it? Find local help in minutes.
             </h1>
             <p className="text-xl md:text-2xl text-slate-600 mb-6 max-w-2xl mx-auto leading-relaxed">
-              Post a job, compare bids, and choose the right person for the work. <strong className="text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md">iNeeda</strong> makes it simple to get local jobs, tasks, and errands done.
+              Post a job, compare bids, and choose the right person for the work. <strong className="text-navy-900 font-extrabold bg-blue-50/80 px-2.5 py-0.5 rounded-lg border border-blue-100/50 inline-flex items-center"><span className="text-blue-600">iN</span>eeda</strong> makes it simple to get local jobs, tasks, and errands done.
             </p>
             <div className="flex items-center justify-center gap-6 mb-10 text-slate-600 font-medium text-sm md:text-base">
               <span className="flex items-center"><CheckCircle2 className="w-5 h-5 text-emerald-500 mr-2" /> Compare bids</span>
@@ -258,42 +197,6 @@ export const Landing: React.FC = () => {
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="py-24 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-navy-900 mb-4">How it works</h2>
-              <p className="text-lg text-slate-500">Need it. Find it. Get it done. A simple process for customers and local professionals.</p>
-            </div>
-            
-            <div className="grid md:grid-cols-4 gap-8">
-              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative group text-center md:text-left">
-                <div className="text-5xl font-black text-slate-100 absolute top-4 right-6 group-hover:text-indigo-50 transition-colors">1</div>
-                <h3 className="text-xl font-bold text-navy-900 mb-3 relative z-10 mt-8">Post a job</h3>
-                <p className="text-slate-600 relative z-10">Describe what you need, your location, timing, and budget.</p>
-              </div>
-              
-              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative group text-center md:text-left">
-                <div className="text-5xl font-black text-slate-100 absolute top-4 right-6 group-hover:text-indigo-50 transition-colors">2</div>
-                <h3 className="text-xl font-bold text-navy-900 mb-3 relative z-10 mt-8">Receive bids</h3>
-                <p className="text-slate-600 relative z-10">Local professionals send offers for your job.</p>
-              </div>
-
-              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative group text-center md:text-left">
-                <div className="text-5xl font-black text-slate-100 absolute top-4 right-6 group-hover:text-indigo-50 transition-colors">3</div>
-                <h3 className="text-xl font-bold text-navy-900 mb-3 relative z-10 mt-8">Choose your pro</h3>
-                <p className="text-slate-600 relative z-10">Compare price, availability, profile, and reviews.</p>
-              </div>
-
-              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 relative group text-center md:text-left">
-                <div className="text-5xl font-black text-slate-100 absolute top-4 right-6 group-hover:text-indigo-50 transition-colors">4</div>
-                <h3 className="text-xl font-bold text-navy-900 mb-3 relative z-10 mt-8">Get it done</h3>
-                <p className="text-slate-600 relative z-10">The job gets completed by the person you picked.</p>
-              </div>
-            </div>
-        </div>
-      </section>
-
       {/* Trust Section */}
       <section id="about" className="py-24 bg-slate-50 border-t border-slate-100">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -301,7 +204,7 @@ export const Landing: React.FC = () => {
               <div className="mb-4 inline-flex rounded-full bg-blue-50 border border-blue-100 px-4 py-1.5 text-xs font-bold tracking-widest text-blue-600 uppercase">
                 Why Choose Us
               </div>
-              <h2 className="text-4xl md:text-5xl font-extrabold text-navy-950 mb-6">Why customers choose<br/>iNeeda</h2>
+              <h2 className="text-4xl md:text-5xl font-extrabold text-navy-950 mb-6">Why customers choose<br/><span className="text-blue-600">iN</span>eeda</h2>
               <p className="text-lg text-slate-500 leading-relaxed font-medium">You stay in control. Instead of being assigned someone, you compare your options and pick the help that feels right.</p>
             </div>
             
@@ -328,12 +231,12 @@ export const Landing: React.FC = () => {
               <div className="mb-10 inline-block">
                 <img src="/logo.png" alt="iNeeda Logo" className="h-14 w-auto rounded-xl" />
               </div>
-              <h2 className="text-4xl md:text-5xl font-extrabold mb-8 tracking-tight">Why we built iNeeda</h2>
+              <h2 className="text-4xl md:text-5xl font-extrabold mb-8 tracking-tight">Why we built <span className="text-blue-600">iN</span>eeda</h2>
               <p className="text-lg md:text-xl text-slate-300 leading-relaxed font-medium mb-6">
                 Finding reliable local help should not require calling around, waiting for callbacks, or guessing who to trust.
               </p>
               <p className="text-lg md:text-xl text-slate-300 leading-relaxed font-medium mb-6">
-                iNeeda was built to make local work simpler: customers post what they need, local professionals can bid, and the customer chooses the person that fits their budget, schedule, and comfort level.
+                <span className="text-blue-600">iN</span>eeda was built to make local work simpler: customers post what they need, local professionals can view jobs, submit quotes, and the customer chooses the person that fits their budget, schedule, and comfort level.
               </p>
               <p className="text-lg md:text-xl text-slate-300 leading-relaxed font-medium">
                 Our goal is to create a trusted local marketplace where everyday jobs get done faster and local workers get more opportunities.
@@ -381,11 +284,11 @@ export const Landing: React.FC = () => {
             
             <div className="flex flex-col gap-6 text-left">
                {[
-                 { q: "How does iNeeda work?", a: "A customer posts a job, local professionals can submit bids, and the customer chooses who they want to hire." },
-                 { q: "Is iNeeda only for home services?", a: "No. The first categories may include home and local services, but the brand is built for many types of everyday jobs and tasks." },
-                 { q: "Can professionals choose which jobs they want?", a: "Yes. Professionals can review available jobs and bid only on the work that fits their skills, area, and schedule." },
-                 { q: "What happens if I post a job but don't like any bids?", a: "You stay in control. You do not have to choose a bid that does not fit your budget, schedule, or comfort level." },
-                 { q: "Where is iNeeda launching first?", a: "iNeeda is being built first around Central PA, with the goal of expanding as more customers and professionals join." }
+                 { q: <>How does <span className="text-blue-600">iN</span>eeda work?</>, a: "A customer posts a job, local professionals can submit bids, and the customer chooses who they want to hire." },
+                 { q: <>Is <span className="text-blue-600">iN</span>eeda only for home services?</>, a: "No. The first categories may include home and local services, but the brand is built for many types of everyday jobs and tasks." },
+                 { q: <>Can professionals choose which jobs they want?</>, a: "Yes. Professionals can review available jobs and bid only on the work that fits their skills, area, and schedule." },
+                 { q: <>What happens if I post a job but don't like any bids?</>, a: "You stay in control. You do not have to choose a bid that does not fit your budget, schedule, or comfort level." },
+                 { q: <>Where is <span className="text-blue-600">iN</span>eeda launching first?</>, a: "iNeeda is being built first around Central PA, with the goal of expanding as more customers and professionals join." }
                ].map((faq, idx) => (
                  <div key={idx} className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100">
                     <h3 className="font-extrabold text-navy-950 text-xl mb-4">{faq.q}</h3>

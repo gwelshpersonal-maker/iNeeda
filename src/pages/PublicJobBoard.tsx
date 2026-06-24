@@ -67,7 +67,7 @@ export const PublicJobBoard = () => {
             <div className="text-center mb-12">
                 <h2 className="text-4xl font-display font-black text-navy-900 mb-4">Corporate Careers</h2>
                 <p className="text-slate-600 max-w-lg mx-auto text-lg mb-8">
-                    Join the <span className="font-bold text-navy-800">iNeeda</span> corporate team. Looking to become a Local Pro instead?
+                    Join the <span className="font-bold text-navy-800"><span className="text-blue-600">iN</span>eeda</span> corporate team. Looking to become a Local Pro instead?
                 </p>
                 <Link to="/signup" className="inline-flex items-center px-8 py-4 bg-gold-400 text-navy-900 font-black text-lg rounded-xl hover:bg-gold-500 transition-all shadow-lg transform hover:scale-105">
                     <Briefcase className="w-5 h-5 mr-2" />

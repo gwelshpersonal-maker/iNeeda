@@ -23,11 +23,12 @@ export const BADGE_GROUPS: Record<string, { id: BadgeType, label: string, descri
   'Professional': [
     { id: 'INSURED_PRO', label: 'Insured Pro', description: 'Uploaded Certificate of Insurance (COI)' },
     { id: 'LICENSED_SPECIALIST', label: 'Licensed Specialist', description: 'PA registration (like HIC)' },
-    { id: 'CLEAN_SLATE', label: 'Clean Slate', description: '3+ year "clean" streak on platform' }
+    { id: 'CLEAN_SLATE', label: 'Clean Slate', description: '3+ year "clean" streak on platform' },
+    { id: 'AI_PREFERRED', label: 'AI Partner Pro', description: 'Priority recommendation in search and AI engine' }
   ],
   'Service': [
     { id: 'FAST_RESPONDER', label: 'Fast Responder', description: 'Average reply time under 30 mins' },
-    { id: 'REPEAT_GUY', label: 'Repeat Pro', description: 'Hired by same client > 3 times' },
+    { id: 'REPEAT_PRO', label: 'Repeat Pro', description: 'Hired by same client > 3 times' },
     { id: 'TOP_RATED', label: 'Top Rated', description: '4.9+ star average after 10+ jobs' }
   ],
   'Safety': [
@@ -37,22 +38,24 @@ export const BADGE_GROUPS: Record<string, { id: BadgeType, label: string, descri
 };
 
 export const ALL_SERVICE_CATEGORIES: ServiceCategory[] = [
-    'LANDSCAPING', 'MOVING', 'CLEANING', 'HANDYMAN', 'PLUMBING', 'AUTO', 'CONSTRUCTION', 'COMPUTER', 'GENERAL_LABOR', 'JOBSITE_LABOR', 'POWER_WASHING', 'SMART_HOME_INSTALL', 'PEST_CONTROL', 'WEB_APP_DEV', 'FURNITURE_ASSEMBLY', 'GUTTER_CLEANING'
+    'LANDSCAPING', 'MOVING', 'CLEANING', 'HANDYMAN', 'PLUMBING', 'AUTO', 'AUTO_DETAILING', 'CONSTRUCTION', 'COMPUTER', 'GENERAL_LABOR', 'JOBSITE_LABOR', 'POWER_WASHING', 'SMART_HOME_INSTALL', 'PEST_CONTROL', 'WEB_APP_DEV', 'FURNITURE_ASSEMBLY', 'GUTTER_CLEANING', 'LISTING_TOUCH_UP'
 ];
 
 export const AVAILABLE_SERVICE_CATEGORIES: ServiceCategory[] = [
-    'MOVING', 'CLEANING', 'HANDYMAN', 'PLUMBING', 'LANDSCAPING', 'POWER_WASHING', 'GENERAL_LABOR', 'JOBSITE_LABOR', 'AUTO', 'COMPUTER', 'SMART_HOME_INSTALL', 'PEST_CONTROL', 'WEB_APP_DEV', 'FURNITURE_ASSEMBLY', 'GUTTER_CLEANING'
+    'MOVING', 'CLEANING', 'HANDYMAN', 'PLUMBING', 'LANDSCAPING', 'POWER_WASHING', 'GENERAL_LABOR', 'JOBSITE_LABOR', 'AUTO', 'AUTO_DETAILING', 'COMPUTER', 'SMART_HOME_INSTALL', 'PEST_CONTROL', 'WEB_APP_DEV', 'FURNITURE_ASSEMBLY', 'GUTTER_CLEANING', 'LISTING_TOUCH_UP'
 ];
 
 export const SERVICE_CATEGORIES = {
   COMPUTER:      { risk: 'LOW',    fee: 3.00 },
   CLEANING:      { risk: 'LOW',    fee: 3.00 },
   WEB_APP_DEV:   { risk: 'LOW',    fee: 3.00 },
+  LISTING_TOUCH_UP: { risk: 'LOW', fee: 3.00 },
   LANDSCAPING:   { risk: 'MEDIUM', fee: 5.00 },
   HANDYMAN:      { risk: 'MEDIUM', fee: 5.00 },
   GENERAL_LABOR: { risk: 'MEDIUM', fee: 5.00 },
   SMART_HOME_INSTALL: { risk: 'MEDIUM', fee: 5.00 },
   FURNITURE_ASSEMBLY: { risk: 'MEDIUM', fee: 5.00 },
+  AUTO_DETAILING: { risk: 'MEDIUM', fee: 5.00 },
   MOVING:        { risk: 'HIGH',   fee: 12.00 },
   PLUMBING:      { risk: 'HIGH',   fee: 12.00 },
   CONSTRUCTION:  { risk: 'HIGH',   fee: 12.00 },
@@ -93,9 +96,11 @@ export const CATEGORY_RISK_MAPPING: Record<ServiceCategory, { risk: keyof typeof
   LANDSCAPING: { risk: RISK_LEVELS.MEDIUM },
   SMART_HOME_INSTALL: { risk: RISK_LEVELS.MEDIUM },
   FURNITURE_ASSEMBLY: { risk: RISK_LEVELS.MEDIUM },
+  AUTO_DETAILING: { risk: RISK_LEVELS.MEDIUM },
   CLEANING: { risk: RISK_LEVELS.LOW },
   COMPUTER: { risk: RISK_LEVELS.LOW },
-  WEB_APP_DEV: { risk: RISK_LEVELS.LOW }
+  WEB_APP_DEV: { risk: RISK_LEVELS.LOW },
+  LISTING_TOUCH_UP: { risk: RISK_LEVELS.LOW }
 };
 
 

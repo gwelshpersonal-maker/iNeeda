@@ -18,18 +18,8 @@ export const PublicServices: React.FC = () => {
   const { addCategoryRequest, publicProfiles, isLoading, serviceCategories } = useData();
 
   const activeCategories = React.useMemo(() => {
-    const pros = publicProfiles.filter(u => u.role === 'PROVIDER' && (u.isActive !== false) && Array.isArray(u.skills));
-    const activeSet = new Set<string>();
-    pros.forEach(pro => {
-      pro.skills?.forEach(s => activeSet.add(s));
-    });
-    
-    // Sort by name or predefined order
-    const available = serviceCategories.filter(c => c.isPublic && c.isActive).map(c => c.id);
-    const sortedCategories = available.filter(cat => activeSet.has(cat));
-    const otherCategories = Array.from(activeSet).filter(cat => !available.includes(cat));
-    return [...sortedCategories, ...otherCategories];
-  }, [publicProfiles, serviceCategories]);
+    return serviceCategories.filter(c => c.isPublic && c.isActive).map(c => c.id);
+  }, [serviceCategories]);
 
   const getServiceDetails = (categoryId: string) => {
     const found = serviceCategories.find(c => c.id === categoryId);

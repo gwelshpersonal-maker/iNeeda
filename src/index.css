@@ -62,7 +62,7 @@ body {
 }
 
 .animate-scroll-fast {
-  animation: scroll-fast 30s linear infinite;
+  animation: scroll-fast 40s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

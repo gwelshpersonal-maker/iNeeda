@@ -57,7 +57,7 @@ export const Privacy: React.FC = () => {
               </ul>
 
               <h3 className="text-xl font-bold text-navy-900 mt-8 mb-4 font-sans">6. Contact Us</h3>
-              <p>If you have any questions about this Privacy Policy or our data practices, please contact us via the Support section of the app or email us at support@ineeda.work.</p>
+              <p>If you have any questions about this Privacy Policy or our data practices, please contact us via the Support section of the app or email us at service@ineeda.work.</p>
             </div>
             
           </div>

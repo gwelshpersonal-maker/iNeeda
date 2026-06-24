@@ -23,12 +23,13 @@ const CheckoutForm = ({ amount, onSuccess }: { amount: number, onSuccess: (id: s
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
-      console.error("Stripe not initialized");
+    if (!stripe || !elements || !isReady) {
+      console.error("Stripe or elements not ready");
       return;
     }
 
@@ -62,14 +63,22 @@ const CheckoutForm = ({ amount, onSuccess }: { amount: number, onSuccess: (id: s
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement />
+      <PaymentElement onReady={() => setIsReady(true)} />
       {error && <div className="text-red-500 text-sm">{error}</div>}
       <button 
         type="submit" 
-        disabled={!stripe || processing}
-        className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center disabled:opacity-50"
+        disabled={!stripe || !isReady || processing}
+        className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center disabled:opacity-50 cursor-pointer"
       >
-        {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : `Pay $${amount.toFixed(2)}`}
+        {processing ? (
+          <Loader2 className="w-5 h-5 animate-spin" />
+        ) : !isReady ? (
+          <span className="flex items-center gap-2">
+            <Loader2 className="w-4.5 h-4.5 animate-spin text-white" /> Loading Payment Form...
+          </span>
+        ) : (
+          `Pay $${amount.toFixed(2)}`
+        )}
       </button>
       <div className="text-xs text-slate-500 bg-slate-50 p-4 rounded-xl border border-slate-100">
         <strong className="block text-navy-900 mb-1">Direct Hire & Escrow Authorization</strong>
@@ -98,6 +107,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTimeout, setIsTimeout] = useState(false);
+
+  const isTestingEnv = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1' || 
+    window.location.hostname.includes('ineeda-staging-613506267929')
+  );
 
   useEffect(() => {
     // Only fetch if we don't have a secret and we're not in an error/timeout state
@@ -134,8 +149,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       .catch(err => {
           console.error("Error creating payment intent:", err);
           setError(err.message);
-          // Only fallback if it's a real error, not just a slow response (handled by timeout)
-          if (!isTimeout) {
+          // Only fallback if it's a real error in a testing/local environment, not production
+          if (!isTimeout && isTestingEnv) {
             setClientSecret("mock_secret_error_" + Date.now());
           }
       })
@@ -194,11 +209,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
         {error && !clientSecret && (
             <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-xl text-sm border border-red-100 italic">
-                Connection issues detected. Switched to offline mock mode.
+                {isTestingEnv 
+                  ? "Connection issues detected. Switched to offline mock mode." 
+                  : "We encountered an issue preparing the payment. Please refresh the page or contact support if the issue persists."}
             </div>
         )}
 
-        {clientSecret && (clientSecret.includes('mock') || isTimeout) ? (
+        {clientSecret && isTestingEnv && (clientSecret.includes('mock') || isTimeout) ? (
              <div className="space-y-4">
                 <div className="p-4 bg-blue-50 text-blue-800 rounded-xl text-sm border border-blue-100">
                     <p className="font-bold mb-1">Demo Mode Activated:</p>
@@ -241,12 +258,22 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <Elements stripe={stripePromise} options={{ clientSecret }}>
                     <CheckoutForm amount={amount} onSuccess={onSuccess} />
                 </Elements>
+                {isTestingEnv && (
+                    <div className="text-center">
+                        <button 
+                            onClick={() => setClientSecret("manual_mock_" + Date.now())}
+                            className="text-[11px] font-bold text-slate-400 hover:text-indigo-600 underline decoration-dotted underline-offset-2 cursor-pointer"
+                        >
+                            Stripe form not loading? Switch to Demo Mode
+                        </button>
+                    </div>
+                )}
             </div>
         ) : (
             <div className="flex flex-col items-center justify-center py-8">
                 <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
                 <p className="text-sm text-slate-500 animate-pulse">Initializing secure connection...</p>
-                {isTimeout && (
+                {isTimeout && isTestingEnv && (
                     <button 
                         onClick={() => setClientSecret("manual_mock_" + Date.now())}
                         className="mt-6 text-xs font-bold text-indigo-600 hover:text-indigo-800 underline decoration-dotted underline-offset-4"

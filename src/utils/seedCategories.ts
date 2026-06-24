@@ -16,6 +16,7 @@ const SERVICE_DETAILS: Record<string, { name: string, icon: string, desc: string
   'GENERAL_LABOR': { name: 'General Labor & Lifting', icon: 'HardHat', desc: 'On-site heavy lifting, furniture rearranging, loading/unloading, and event setup. Perfect for physical tasks and moving items that do not require traveling to a second location.', color: 'text-yellow-600' },
   'JOBSITE_LABOR': { name: 'Jobsite Labor', icon: 'HardHat', desc: 'A professional job site laborer provides physical support for construction projects. They are reliable, skilled in tasks like digging, cleaning, and assisting tradespeople, and work to keep projects running efficiently, safely, and on schedule.', color: 'text-yellow-600' },
   'AUTO': { name: 'Auto Services', icon: 'Car', desc: 'Mobile car washing, basic detailing, and minor roadside assistance. Need help with brake pads, oil changes, or a dead battery? Just put in a request.', color: 'text-zinc-600' },
+  'AUTO_DETAILING': { name: 'Auto Detailing', icon: 'Car', desc: 'Interior and exterior vehicle detailing, waxing, polishing, and deep cleaning for cars, trucks, and SUVs.', color: 'text-zinc-500' },
   'CONSTRUCTION': { name: 'Construction', icon: 'Hammer', desc: 'General construction and framing.', color: 'text-orange-600' },
   'WEB_APP_DEV': { name: 'Web App Dev', icon: 'Laptop', desc: 'Web development and software services.', color: 'text-indigo-600' }
 };
@@ -33,7 +34,7 @@ export const generateDefaultCategories = (): ServiceCategoryDef[] => {
     
     // Fallbacks
     if (id === 'MOVING' || id === 'PLUMBING' || id === 'CONSTRUCTION' || id === 'AUTO' || id === 'JOBSITE_LABOR' || id === 'POWER_WASHING' || id === 'PEST_CONTROL' || id === 'GUTTER_CLEANING') riskLevel = 'HIGH';
-    if (id === 'LANDSCAPING' || id === 'HANDYMAN' || id === 'GENERAL_LABOR' || id === 'SMART_HOME_INSTALL' || id === 'FURNITURE_ASSEMBLY') riskLevel = 'MEDIUM';
+    if (id === 'LANDSCAPING' || id === 'HANDYMAN' || id === 'GENERAL_LABOR' || id === 'SMART_HOME_INSTALL' || id === 'FURNITURE_ASSEMBLY' || id === 'AUTO_DETAILING') riskLevel = 'MEDIUM';
     
     if (riskLevel === 'MEDIUM') minimumFee = 5.0;
     if (riskLevel === 'HIGH') minimumFee = 12.0;
