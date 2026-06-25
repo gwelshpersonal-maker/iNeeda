@@ -18,7 +18,8 @@ const SERVICE_DETAILS: Record<string, { name: string, icon: string, desc: string
   'AUTO': { name: 'Auto Services', icon: 'Car', desc: 'Mobile car washing, basic detailing, and minor roadside assistance. Need help with brake pads, oil changes, or a dead battery? Just put in a request.', color: 'text-zinc-600' },
   'AUTO_DETAILING': { name: 'Auto Detailing', icon: 'Car', desc: 'Interior and exterior vehicle detailing, waxing, polishing, and deep cleaning for cars, trucks, and SUVs.', color: 'text-zinc-500' },
   'CONSTRUCTION': { name: 'Construction', icon: 'Hammer', desc: 'General construction and framing.', color: 'text-orange-600' },
-  'WEB_APP_DEV': { name: 'Web App Dev', icon: 'Laptop', desc: 'Web development and software services.', color: 'text-indigo-600' }
+  'WEB_APP_DEV': { name: 'Web App Dev', icon: 'Laptop', desc: 'Web development and software services.', color: 'text-indigo-600' },
+  'JUNK_REMOVAL': { name: 'Junk Cleanout & Removal', icon: 'Trash2', desc: 'Attic, basement, and garage cleanouts, appliance haul-away, and junk disposal. Perfect for decluttering and debris removal.', color: 'text-teal-600' }
 };
 
 export const generateDefaultCategories = (): ServiceCategoryDef[] => {
@@ -48,7 +49,7 @@ export const generateDefaultCategories = (): ServiceCategoryDef[] => {
       riskLevel,
       minimumFee,
       isActive: true,
-      isPublic: true
+      isPublic: id === 'JUNK_REMOVAL' ? false : true
     };
   });
 };
