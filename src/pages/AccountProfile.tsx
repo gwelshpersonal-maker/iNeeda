@@ -28,6 +28,7 @@ export const AccountProfile = () => {
     // Password change state (mock)
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPasswordFields, setShowPasswordFields] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
 
     useEffect(() => {
@@ -539,7 +540,7 @@ export const AccountProfile = () => {
             await updateUser(updatedUser);
 
             // Password handling would go to a real auth backend here
-            if (newPassword) {
+            if (showPasswordFields && newPassword) {
                 if (newPassword !== confirmPassword) {
                     throw new Error("Passwords do not match");
                 }
@@ -550,6 +551,7 @@ export const AccountProfile = () => {
             // Clear password fields
             setNewPassword('');
             setConfirmPassword('');
+            setShowPasswordFields(false);
         } catch (error: any) {
             console.error("Error updating profile:", error);
             let message = "Failed to update profile. Please try again.";
@@ -892,33 +894,64 @@ export const AccountProfile = () => {
     </div>
 
                             {/* Password Change (Mock) */}
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <h2 className="text-xl font-bold text-navy-900 mb-6 flex items-center">
-            <Lock className="w-5 h-5 mr-2 text-gold-500" /> Security
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">New Password</label>
-                <input 
-                    type="password" 
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-navy-100 focus:border-navy-500 outline-none transition-all font-medium"
-                    placeholder="••••••••"
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                />
-            </div>
-            <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Confirm Password</label>
-                <input 
-                    type="password" 
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-navy-100 focus:border-navy-500 outline-none transition-all font-medium"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={e => setConfirmPassword(e.target.value)}
-                />
-            </div>
-        </div>
-    </div>
+                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h2 className="text-xl font-bold text-navy-900 flex items-center">
+                                        <Lock className="w-5 h-5 mr-2 text-gold-500" /> Security
+                                    </h2>
+                                    {!showPasswordFields && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPasswordFields(true)}
+                                            className="text-sm font-bold text-navy-600 hover:text-navy-700 transition-colors"
+                                        >
+                                            Change Password
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                {showPasswordFields && (
+                                    <div className="space-y-6 animate-in slide-in-from-top-2 duration-200">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label className="block text-sm font-bold text-slate-700 mb-2">New Password</label>
+                                                <input 
+                                                    type="password" 
+                                                    autoComplete="new-password"
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-navy-100 focus:border-navy-500 outline-none transition-all font-medium"
+                                                    placeholder="••••••••"
+                                                    value={newPassword}
+                                                    onChange={e => setNewPassword(e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-bold text-slate-700 mb-2">Confirm Password</label>
+                                                <input 
+                                                    type="password" 
+                                                    autoComplete="new-password"
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-navy-100 focus:border-navy-500 outline-none transition-all font-medium"
+                                                    placeholder="••••••••"
+                                                    value={confirmPassword}
+                                                    onChange={e => setConfirmPassword(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowPasswordFields(false);
+                                                    setNewPassword('');
+                                                    setConfirmPassword('');
+                                                }}
+                                                className="text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
 
                     </div>
                 )}
