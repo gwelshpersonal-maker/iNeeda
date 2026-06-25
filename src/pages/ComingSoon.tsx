@@ -42,7 +42,9 @@ export const ComingSoon: React.FC = () => {
 
   const LAUNCH_AREAS = [
     "Camp Hill", "Mechanicsburg", "Harrisburg", "Carlisle", 
-    "Enola", "Lemoyne", "New Cumberland", "Dillsburg"
+    "Enola", "Lemoyne", "New Cumberland", "Dillsburg",
+    "Hershey", "Middletown", "Hummelstown", "Marysville", 
+    "Duncannon", "Elizabethtown", "Lititz", "Ephrata", "Manheim"
   ];
 
   const LAUNCH_TRADES = [
