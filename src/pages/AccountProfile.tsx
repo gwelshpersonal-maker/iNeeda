@@ -804,21 +804,6 @@ export const AccountProfile = () => {
                     </div>
                 </>
             )}
-            <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Role</label>
-                <select 
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-navy-100 focus:border-navy-500 outline-none transition-all font-medium text-navy-900"
-                    value={formData.role || currentUser.role}
-                    onChange={e => setFormData({...formData, role: e.target.value as Role})}
-                >
-                    <option value={Role.CLIENT}>Client (Homeowner)</option>
-                    <option value={Role.PROVIDER}>Provider (Local Pro)</option>
-                    <option value={Role.ADMIN}>Admin</option>
-                    <option value={Role.MANAGER}>Manager</option>
-                    <option value={Role.EMPLOYEE}>Employee</option>
-                </select>
-                <p className="text-xs text-slate-500 mt-1">Change your role for testing purposes.</p>
-            </div>
 
             <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Email Address</label>
