@@ -246,16 +246,9 @@ export const ComingSoon: React.FC = () => {
 
       {/* Footer */}
       <footer className="w-full border-t border-slate-900 py-6 bg-slate-950 relative z-10 text-center">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-medium">
-          <div>
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-medium justify-center">
+          <div className="mx-auto">
             &copy; {new Date().getFullYear()} iNeeda. All rights reserved.
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to="/terms" className="hover:text-slate-300 transition-colors">Terms of Service</Link>
-            <span className="text-slate-800">&bull;</span>
-            <Link to="/privacy" className="hover:text-slate-300 transition-colors">Privacy Policy</Link>
-            <span className="text-slate-800">&bull;</span>
-            <Link to="/contact" className="hover:text-slate-300 transition-colors">Contact Support</Link>
           </div>
         </div>
       </footer>
