@@ -151,56 +151,86 @@ export const Signup = () => {
 
             const firebaseUser = await loginWithGoogle();
             const newUserId = firebaseUser.uid;
+            const cleanEmail = firebaseUser.email || '';
             
             // Check if user already exists
-            const { doc, getDoc } = await import('firebase/firestore');
+            const { doc, getDoc, deleteDoc } = await import('firebase/firestore');
             const { db } = await import('../lib/firebase');
             const userDocRef = doc(db, 'users', newUserId);
             const userDocSnap = await getDoc(userDocRef);
             
             if (!userDocSnap.exists()) {
-                const cleanEmail = firebaseUser.email || '';
-                const isKnownAdmin = cleanEmail === 'gwelshpersonal@gmail.com' || cleanEmail === 'admin@ineeda.work';
+                // Check if there is a pre-created user with this email (e.g. from Velvet Rope application)
+                const existingUserByEmail = users.find(u => u.email.toLowerCase() === cleanEmail.toLowerCase());
 
-                const newUser: User = {
-                    id: newUserId,
-                    orgId: 'org_1',
-                    name: formData.name || firebaseUser.displayName || cleanEmail.split('@')[0],
-                    companyName: formData.companyName || undefined,
-                    email: cleanEmail,
-                    role: isKnownAdmin ? Role.ADMIN : role,
-                    staffType: isProvider ? StaffType.MARKETPLACE_VENDOR : undefined,
-                    
-                    isActive: isProvider ? false : true,
-                    isBackgroundCheckPaid: isProvider ? false : true,
-                    verificationStatus: verificationStatus,
-                    
-                    hourlyRate: isProvider ? 35 : 0, 
-                    phone: formData.phone || firebaseUser.phoneNumber || '',
-                    address: formData.address || '',
-                    latitude: 37.7749 + (Math.random() - 0.5) * 0.1,
-                    longitude: -122.4194 + (Math.random() - 0.5) * 0.1,
-                    urgentAlertsEnabled: true,
-                    skills: isProvider ? formData.skills : undefined,
-                    
-                    insuranceType: isProvider ? formData.insuranceType : undefined,
-                    coiUrl: isProvider && formData.insuranceType === 'OWN_COI' ? (formData.coiFile || undefined) : undefined,
-                    isCoiVerified: false 
-                };
+                if (existingUserByEmail) {
+                    const migratedUser: User = {
+                        ...existingUserByEmail,
+                        id: newUserId,
+                        email: cleanEmail
+                    };
 
-                await addUser(newUser);
+                    await addUser(migratedUser);
 
-                const newSite: Site = {
-                    id: `site_${Date.now()}`,
-                    orgId: newUser.orgId,
-                    ownerId: newUser.id,
-                    name: "Home",
-                    address: newUser.address || formData.address,
-                    latitude: newUser.latitude || 0,
-                    longitude: newUser.longitude || 0,
-                    radiusMeters: 500
-                };
-                await addSite(newSite);
+                    const newSite: Site = {
+                        id: `site_${Date.now()}`,
+                        orgId: migratedUser.orgId,
+                        ownerId: migratedUser.id,
+                        name: "Home",
+                        address: migratedUser.address || '',
+                        latitude: migratedUser.latitude || 0,
+                        longitude: migratedUser.longitude || 0,
+                        radiusMeters: 500
+                    };
+                    await addSite(newSite);
+
+                    await deleteDoc(doc(db, 'users', existingUserByEmail.id));
+                    if (existingUserByEmail.role === Role.PROVIDER) {
+                        await deleteDoc(doc(db, 'public_profiles', existingUserByEmail.id));
+                    }
+                } else {
+                    const isKnownAdmin = cleanEmail === 'gwelshpersonal@gmail.com' || cleanEmail === 'admin@ineeda.work';
+
+                    const newUser: User = {
+                        id: newUserId,
+                        orgId: 'org_1',
+                        name: formData.name || firebaseUser.displayName || cleanEmail.split('@')[0],
+                        companyName: formData.companyName || undefined,
+                        email: cleanEmail,
+                        role: isKnownAdmin ? Role.ADMIN : role,
+                        staffType: isProvider ? StaffType.MARKETPLACE_VENDOR : undefined,
+                        
+                        isActive: isProvider ? false : true,
+                        isBackgroundCheckPaid: isProvider ? false : true,
+                        verificationStatus: verificationStatus,
+                        
+                        hourlyRate: isProvider ? 35 : 0, 
+                        phone: formData.phone || firebaseUser.phoneNumber || '',
+                        address: formData.address || '',
+                        latitude: 37.7749 + (Math.random() - 0.5) * 0.1,
+                        longitude: -122.4194 + (Math.random() - 0.5) * 0.1,
+                        urgentAlertsEnabled: true,
+                        skills: isProvider ? formData.skills : undefined,
+                        
+                        insuranceType: isProvider ? formData.insuranceType : undefined,
+                        coiUrl: isProvider && formData.insuranceType === 'OWN_COI' ? (formData.coiFile || undefined) : undefined,
+                        isCoiVerified: false 
+                    };
+
+                    await addUser(newUser);
+
+                    const newSite: Site = {
+                        id: `site_${Date.now()}`,
+                        orgId: newUser.orgId,
+                        ownerId: newUser.id,
+                        name: "Home",
+                        address: newUser.address || formData.address,
+                        latitude: newUser.latitude || 0,
+                        longitude: newUser.longitude || 0,
+                        radiusMeters: 500
+                    };
+                    await addSite(newSite);
+                }
 
                 const isReferralActive = (role === Role.PROVIDER && isProviderReferralEnabled) || (role === Role.CLIENT && isClientReferralEnabled);
 
@@ -293,54 +323,88 @@ export const Signup = () => {
             const firebaseUser = await signup(formData.email.trim(), formData.password);
             const newUserId = firebaseUser.uid;
 
-            // 2. Create User in local mock data
-            const newUser: User = {
-                id: newUserId,
-                orgId: 'org_1',
-                name: formData.name,
-                companyName: formData.companyName || undefined,
-                email: formData.email.trim(),
-                role: role,
-                staffType: isProvider ? StaffType.MARKETPLACE_VENDOR : undefined,
-                
-                isActive: isProvider ? false : true,
-                isBackgroundCheckPaid: isProvider ? false : true,
-                verificationStatus: verificationStatus,
-                
-                hourlyRate: isProvider ? 35 : 0, 
-                phone: formData.phone,
-                address: formData.address,
-                latitude: 37.7749 + (Math.random() - 0.5) * 0.1, // Mock geocoding
-                longitude: -122.4194 + (Math.random() - 0.5) * 0.1, // Mock geocoding
-                urgentAlertsEnabled: true,
-                skills: isProvider ? formData.skills : undefined,
-                
-                // Insurance Data
-                insuranceType: isProvider ? formData.insuranceType : undefined,
-                coiUrl: isProvider && formData.insuranceType === 'OWN_COI' ? (formData.coiFile || undefined) : undefined,
-                isCoiVerified: false,
-                
-                // Payout
-                payoutMethod: isProvider ? formData.payoutMethod : undefined,
-                zelleInfo: isProvider && formData.payoutMethod === 'ZELLE' ? {
-                    emailOrPhone: formData.zelleEmailOrPhone
-                } : undefined
-            };
+            // Check if there is a pre-created user with this email (e.g. from Velvet Rope application)
+            const existingUserByEmail = users.find(u => u.email.toLowerCase() === formData.email.trim().toLowerCase());
 
-            await addUser(newUser);
+            if (existingUserByEmail) {
+                const { doc, deleteDoc } = await import('firebase/firestore');
+                const { db } = await import('../lib/firebase');
 
-            // Create Default Site (Location) for the user
-            const newSite: Site = {
-                id: `site_${Date.now()}`,
-                orgId: newUser.orgId,
-                ownerId: newUser.id,
-                name: "Home", // Default name
-                address: newUser.address || formData.address,
-                latitude: newUser.latitude || 0,
-                longitude: newUser.longitude || 0,
-                radiusMeters: 500
-            };
-            await addSite(newSite);
+                // Migrate pre-created user data to use the new Firebase Auth UID
+                const migratedUser: User = {
+                    ...existingUserByEmail,
+                    id: newUserId,
+                    email: formData.email.trim()
+                };
+
+                await addUser(migratedUser);
+
+                const newSite: Site = {
+                    id: `site_${Date.now()}`,
+                    orgId: migratedUser.orgId,
+                    ownerId: migratedUser.id,
+                    name: "Home",
+                    address: migratedUser.address || formData.address,
+                    latitude: migratedUser.latitude || 0,
+                    longitude: migratedUser.longitude || 0,
+                    radiusMeters: 500
+                };
+                await addSite(newSite);
+
+                await deleteDoc(doc(db, 'users', existingUserByEmail.id));
+                if (existingUserByEmail.role === Role.PROVIDER) {
+                    await deleteDoc(doc(db, 'public_profiles', existingUserByEmail.id));
+                }
+            } else {
+                // 2. Create User in local mock data
+                const newUser: User = {
+                    id: newUserId,
+                    orgId: 'org_1',
+                    name: formData.name,
+                    companyName: formData.companyName || undefined,
+                    email: formData.email.trim(),
+                    role: role,
+                    staffType: isProvider ? StaffType.MARKETPLACE_VENDOR : undefined,
+                    
+                    isActive: isProvider ? false : true,
+                    isBackgroundCheckPaid: isProvider ? false : true,
+                    verificationStatus: verificationStatus,
+                    
+                    hourlyRate: isProvider ? 35 : 0, 
+                    phone: formData.phone,
+                    address: formData.address,
+                    latitude: 37.7749 + (Math.random() - 0.5) * 0.1, // Mock geocoding
+                    longitude: -122.4194 + (Math.random() - 0.5) * 0.1, // Mock geocoding
+                    urgentAlertsEnabled: true,
+                    skills: isProvider ? formData.skills : undefined,
+                    
+                    // Insurance Data
+                    insuranceType: isProvider ? formData.insuranceType : undefined,
+                    coiUrl: isProvider && formData.insuranceType === 'OWN_COI' ? (formData.coiFile || undefined) : undefined,
+                    isCoiVerified: false,
+                    
+                    // Payout
+                    payoutMethod: isProvider ? formData.payoutMethod : undefined,
+                    zelleInfo: isProvider && formData.payoutMethod === 'ZELLE' ? {
+                        emailOrPhone: formData.zelleEmailOrPhone
+                    } : undefined
+                };
+
+                await addUser(newUser);
+
+                // Create Default Site (Location) for the user
+                const newSite: Site = {
+                    id: `site_${Date.now()}`,
+                    orgId: newUser.orgId,
+                    ownerId: newUser.id,
+                    name: "Home", // Default name
+                    address: newUser.address || formData.address,
+                    latitude: newUser.latitude || 0,
+                    longitude: newUser.longitude || 0,
+                    radiusMeters: 500
+                };
+                await addSite(newSite);
+            }
 
             // 2. Handle Referral Logic (only if enabled)
             const isReferralActive = (role === Role.PROVIDER && isProviderReferralEnabled) || (role === Role.CLIENT && isClientReferralEnabled);

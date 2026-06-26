@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { Mail, Phone, Building2, Calendar, CheckCircle2, Clock, Inbox } from 'lucide-react';
+import { useData } from '../contexts/DataContext';
+import { Role, StaffType } from '../types';
 
 export const AdminFoundersApplications = () => {
+    const { users, serviceCategories, addUser } = useData();
     const [applications, setApplications] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -38,6 +41,58 @@ export const AdminFoundersApplications = () => {
             ));
         } catch (error) {
             console.error("Error updating status:", error);
+        }
+    };
+
+    const handleCreateProProfile = async (app: any) => {
+        try {
+            const selectedCats = Array.isArray(app.categories) && app.categories.length > 0
+                ? app.categories
+                : (app.category ? app.category.split(',').map((c: string) => c.trim()).filter(Boolean) : []);
+
+            const mappedSkills = selectedCats.map((catName: string) => {
+                const matchedCategory = serviceCategories.find((sc: any) => sc.name.toLowerCase() === catName.toLowerCase() || sc.id.toLowerCase() === catName.toLowerCase());
+                return matchedCategory ? matchedCategory.id : null;
+            }).filter(Boolean);
+
+            const tempUserId = `user_${Date.now()}`;
+
+            const newUser = {
+                id: tempUserId,
+                orgId: 'org_1',
+                name: app.fullName,
+                companyName: app.businessName || undefined,
+                email: app.email,
+                role: Role.PROVIDER,
+                staffType: StaffType.MARKETPLACE_VENDOR,
+                isActive: true,
+                isBackgroundCheckPaid: true,
+                verificationStatus: 'VERIFIED' as any,
+                hourlyRate: 35.00,
+                phone: app.phone,
+                address: '',
+                latitude: 37.7749 + (Math.random() - 0.5) * 0.1,
+                longitude: -122.4194 + (Math.random() - 0.5) * 0.1,
+                urgentAlertsEnabled: true,
+                skills: mappedSkills,
+                insuranceType: 'DAILY_SHIELD' as any,
+                isCoiVerified: false,
+                isFoundersClub: true,
+                createdAt: new Date()
+            };
+
+            await addUser(newUser);
+
+            await updateDoc(doc(db, 'founders_club_applications', app.id), {
+                proProfileCreated: true,
+                proUserId: tempUserId
+            });
+
+            alert(`Pro profile for ${app.fullName} created successfully! You can now manage their active skill authorizations and check status in the Crew/Staff list.`);
+            fetchApplications();
+        } catch (error: any) {
+            console.error("Error creating pro profile:", error);
+            alert("Failed to create pro profile: " + error.message);
         }
     };
 
@@ -195,8 +250,29 @@ export const AdminFoundersApplications = () => {
                             </div>
                             
                             {app.status === 'APPROVED' && (
-                                <div className="mt-6 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg flex items-center justify-center font-bold text-sm">
-                                    <CheckCircle2 className="w-5 h-5 mr-2" /> Application Approved
+                                <div className="mt-6 flex flex-col sm:flex-row gap-4 items-center justify-between bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-4 rounded-xl">
+                                    <div className="flex items-center font-bold text-sm">
+                                        <CheckCircle2 className="w-5 h-5 mr-2 text-emerald-600" /> Application Approved
+                                    </div>
+                                    {(() => {
+                                        const userExists = users.some((u: any) => u.email.toLowerCase() === app.email.toLowerCase());
+                                        if (userExists) {
+                                            return (
+                                                <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200 shadow-sm">
+                                                    Pro User Profile Active
+                                                </span>
+                                            );
+                                        }
+                                        return (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleCreateProProfile(app)}
+                                                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-md transition-colors"
+                                            >
+                                                Create Pro Profile
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             )}
                             {app.status === 'REJECTED' && (

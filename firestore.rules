@@ -182,10 +182,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+      allow create: if (isOwner(userId) || isAdminOrManager()) && isValidUser(request.resource.data) && 
                     (request.resource.data.role != 'ADMIN' || request.resource.data.email in ['gwelshpersonal@gmail.com', 'admin@ineeda.work']) && 
-                    !('subscriptionStatus' in request.resource.data) &&
-                    !('isFoundersClub' in request.resource.data);
+                    (isOwner(userId) ? (!('subscriptionStatus' in request.resource.data) && !('isFoundersClub' in request.resource.data)) : true);
       allow update: if (isAdminOrManager() || (
                       isOwner(userId) && 
                       request.resource.data.role == resource.data.role && 
